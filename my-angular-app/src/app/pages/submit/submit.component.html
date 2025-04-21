@@ -1,0 +1,73 @@
+<h1>Submit Your Artwork</h1>
+<p>Share your creations with the world.</p>
+
+<div class="submit-form-container">
+    <form [formGroup]="submitForm" (ngSubmit)="onSubmit()">
+        <!-- Title -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Title</mat-label>
+          <input matInput formControlName="title" />
+          @if (submitForm.get('title')?.hasError('required')) {
+            <mat-error>Title is required.</mat-error>
+          }
+          @if (submitForm.get('title')?.hasError('maxlength')) {
+            <mat-error>Title must be less than 100 characters.</mat-error>
+          }
+        </mat-form-field>
+      
+        <!-- Description -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Description</mat-label>
+          <textarea matInput formControlName="description"></textarea>
+          @if (submitForm.get('description')?.hasError('required')) {
+            <mat-error>Description is required.</mat-error>
+          }
+          @if (submitForm.get('description')?.hasError('maxlength')) {
+            <mat-error>Description must be less than 500 characters.</mat-error>
+          }
+        </mat-form-field>
+      
+        <!-- Image -->
+        <div appearance="outline" class="full-width">
+          <label>Image</label>
+          <input
+            type="file"
+            (change)="onFileChange($event)"
+            required
+            [disabled]="false"
+          />
+          @if (submitForm.get('image')?.hasError('required')) {
+            <mat-error>Image is required.</mat-error>
+          }
+      </div>
+      
+        <!-- External Link -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>External Link</mat-label>
+          <input matInput formControlName="externalLink" type="url" />
+          @if (submitForm.get('externalLink')?.hasError('required')) {
+            <mat-error>External link is required.</mat-error>
+          }
+          @if (submitForm.get('externalLink')?.hasError('pattern')) {
+            <mat-error>Enter a valid URL.</mat-error>
+          }
+        </mat-form-field>
+      
+        <!-- Artist Info -->
+        <mat-form-field appearance="outline" class="full-width">
+          <mat-label>Artist Info</mat-label>
+          <textarea matInput formControlName="artistInfo"></textarea>
+          @if (submitForm.get('artistInfo')?.hasError('required')) {
+            <mat-error>Artist info is required.</mat-error>
+          }
+          @if (submitForm.get('artistInfo')?.hasError('maxlength')) {
+            <mat-error>Artist info must be less than 200 characters.</mat-error>
+          }
+        </mat-form-field>
+      
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitForm.invalid">
+          Submit
+        </button>
+      </form>
+</div>
+

@@ -1,0 +1,9 @@
+.gallery-grid {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+}
+
+.art-card {
+  max-width: 400px;
+}

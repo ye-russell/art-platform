@@ -23,7 +23,23 @@ export class GalleryComponent {
       id: '2',
       title: 'Mona Lisa',
       description: 'A portrait painting by Leonardo da Vinci.',
-      imageUrl: 'https://picsum.photos/800/600',
+      imageUrl: 'https://picsum.photos/700/500',
+      artist: {name:'Leonardo da Vinci'},
+      link: 'https://example.com/mona-lisa'
+    },
+    {
+      id: '3',
+      title: 'Mona Lisa',
+      description: 'A portrait painting by Leonardo da Vinci.',
+      imageUrl: 'https://picsum.photos/600/400',
+      artist: {name:'Leonardo da Vinci'},
+      link: 'https://example.com/mona-lisa'
+    },
+    {
+      id: '4',
+      title: 'Mona Lisa',
+      description: 'A portrait painting by Leonardo da Vinci.',
+      imageUrl: 'https://picsum.photos/400/300',
       artist: {name:'Leonardo da Vinci'},
       link: 'https://example.com/mona-lisa'
     }

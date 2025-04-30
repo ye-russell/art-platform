@@ -27,9 +27,13 @@ import { AuthService } from '../../core/auth.service';
 export class LoginComponent {
   loginForm: FormGroup;
   registerForm: FormGroup;
+  confirmationForm: FormGroup;
   isLoading = false;
   errorMessage = '';
   isRegisterMode = false;
+  needsConfirmation = false;
+  showConfirmation = false; // To control confirmation code view
+  userEmail = ''; // Store email for confirmation
 
   constructor(
     private fb: FormBuilder,
@@ -45,6 +49,10 @@ export class LoginComponent {
       password: ['', [Validators.required, Validators.minLength(6)]],
       name: ['', [Validators.required, Validators.maxLength(50)]],
     });
+    // Confirmation form
+    this.confirmationForm = this.fb.group({
+      code: ['', Validators.required],
+    });
   }
 
   toggleMode(): void {
@@ -53,39 +61,90 @@ export class LoginComponent {
   }
 
   onSubmit(): void {
-    if (this.isRegisterMode) {
-      if (this.registerForm.valid) {
-        this.isLoading = true;
-        const { email, password, name } = this.registerForm.value;
-
-        this.authService.signUp(email, password, name).subscribe({
-          next: () => {
-            this.isLoading = false;
-            this.toggleMode(); // Switch back to login mode after successful registration
-          },
-          error: (error) => {
-            this.isLoading = false;
-            this.errorMessage = error.message || 'Registration failed';
-          },
-        });
-      }
+    if (this.showConfirmation) {
+      this.handleConfirmation();
+    } else if (this.isRegisterMode) {
+      this.handleRegistration();
     } else {
-      if (this.loginForm.valid) {
-        this.isLoading = true;
-        this.errorMessage = '';
+      this.handleLogin();
+    }
+  }
 
-        const { email, password } = this.loginForm.value;
+  private handleRegistration(): void {
+    if (this.registerForm.valid) {
+      this.isLoading = true;
+      const { email, password, name } = this.registerForm.value;
 
-        this.authService.signIn(email, password).subscribe({
-          next: () => {
-            this.router.navigate(['/gallery']);
-          },
-          error: (error) => {
-            this.isLoading = false;
-            this.errorMessage = error.message || 'Login failed';
-          },
-        });
-      }
+      this.authService.signUp(email, password, name).subscribe({
+        next: (result) => {
+          this.isLoading = false;
+          if (!result.isSignUpComplete) {
+            this.userEmail = email;
+            this.showConfirmation = true;
+            this.errorMessage =
+              'Please check your email for the confirmation code';
+          }
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = error.message || 'Registration failed';
+        },
+      });
+    }
+  }
+
+  private handleConfirmation(): void {
+    if (this.confirmationForm.valid) {
+      this.isLoading = true;
+      const { code } = this.confirmationForm.value;
+
+      this.authService.confirmSignUp(this.userEmail, code).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.showConfirmation = false;
+          this.isRegisterMode = false; // Switch to login view
+          this.errorMessage = 'Email confirmed successfully. Please login.';
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = error.message || 'Confirmation failed';
+        },
+      });
+    }
+  }
+
+  private handleLogin(): void {
+    if (this.loginForm.valid) {
+      this.isLoading = true;
+      this.errorMessage = '';
+
+      const { email, password } = this.loginForm.value;
+
+      this.authService.signIn(email, password).subscribe({
+        next: () => {
+          this.router.navigate(['/gallery']);
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = error.message || 'Login failed';
+        },
+      });
+    }
+  }
+
+  resendCode(): void {
+    if (this.userEmail) {
+      this.isLoading = true;
+      this.authService.resendConfirmationCode(this.userEmail).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.errorMessage = 'New confirmation code sent to your email';
+        },
+        error: (error) => {
+          this.isLoading = false;
+          this.errorMessage = error.message || 'Failed to resend code';
+        },
+      });
     }
   }
 }

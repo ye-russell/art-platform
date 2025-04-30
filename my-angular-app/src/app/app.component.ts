@@ -3,7 +3,6 @@ import { RouterModule, RouterOutlet } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { AuthService } from './core/auth.service';
-import { Observable } from 'rxjs';
 import { AsyncPipe } from '@angular/common';
 
 @Component({
@@ -19,14 +18,12 @@ import { AsyncPipe } from '@angular/common';
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  title = 'my-angular-app';
-  authService: AuthService = inject(AuthService);
-  isAuthenticated$: Observable<boolean>;
-  constructor() {
-    this.isAuthenticated$ = this.authService.isAuthenticated();
-  }
+  readonly title = 'my-angular-app';
+  private readonly authService = inject(AuthService);
 
-  logout() {
+  readonly isAuthenticated$ = this.authService.isAuthenticated();
+
+  logout(): void {
     this.authService.signOut().subscribe();
   }
 }

@@ -1,89 +1,130 @@
 <div class="login-container">
   <mat-card>
     <mat-card-header>
-      <mat-card-title>Login to Art Platform</mat-card-title>
+      <mat-card-title
+        >{{ isRegisterMode ? "Register" : "Login" }} to Art
+        Platform</mat-card-title
+      >
     </mat-card-header>
 
     <mat-card-content>
-      <form
-        [formGroup]="isRegisterMode ? registerForm : loginForm"
-        (ngSubmit)="onSubmit()"
-      >
-        <mat-form-field appearance="outline">
-          <mat-label>Email</mat-label>
-          <input matInput type="email" formControlName="email" required />
-          @if (
-            (isRegisterMode ? registerForm : loginForm)
-              .get("email")
-              ?.hasError("required")
-          ) {
-            <mat-error> Email is required </mat-error>
-          }
+      @if (showConfirmation) {
+        <form [formGroup]="confirmationForm" (ngSubmit)="onSubmit()">
+          <mat-form-field>
+            <mat-label>Confirmation Code</mat-label>
+            <input
+              matInput
+              formControlName="code"
+              placeholder="Enter the code sent to your email"
+              required
+            />
+          </mat-form-field>
 
-          @if (
-            (isRegisterMode ? registerForm : loginForm)
-              .get("email")
-              ?.hasError("email")
-          ) {
-            <mat-error> Please enter a valid email </mat-error>
-          }
-        </mat-form-field>
+          <div class="form-actions">
+            <button
+              mat-raised-button
+              color="primary"
+              type="submit"
+              [disabled]="!confirmationForm.valid || isLoading"
+            >
+              Confirm Email
+            </button>
 
-        <mat-form-field appearance="outline">
-          <mat-label>Password</mat-label>
-          <input matInput type="password" formControlName="password" required />
-          @if (
-            (isRegisterMode ? registerForm : loginForm)
-              .get("password")
-              ?.hasError("required")
-          ) {
-            <mat-error> Password is required </mat-error>
-          }
-          @if (
-            registerForm.get("password")?.hasError("minlength") &&
-            isRegisterMode
-          ) {
-            <mat-error> Password must be at least 6 characters </mat-error>
-          }
-        </mat-form-field>
-
-        @if (isRegisterMode) {
+            <button
+              mat-button
+              type="button"
+              (click)="resendCode()"
+              [disabled]="isLoading"
+            >
+              Resend Code
+            </button>
+          </div>
+        </form>
+      } @else {
+        <form
+          [formGroup]="isRegisterMode ? registerForm : loginForm"
+          (ngSubmit)="onSubmit()"
+        >
           <mat-form-field appearance="outline">
-            <mat-label>Name</mat-label>
-            <input matInput type="text" formControlName="name" required />
-            @if (registerForm.get("name")?.hasError("required")) {
-              <mat-error> Name is required </mat-error>
+            <mat-label>Email</mat-label>
+            <input matInput type="email" formControlName="email" required />
+            @if (
+              (isRegisterMode ? registerForm : loginForm)
+                .get("email")
+                ?.hasError("required")
+            ) {
+              <mat-error> Email is required </mat-error>
             }
 
-            @if (registerForm.get("name")?.hasError("maxlength")) {
-              <mat-error> Name cannot exceed 50 characters </mat-error>
+            @if (
+              (isRegisterMode ? registerForm : loginForm)
+                .get("email")
+                ?.hasError("email")
+            ) {
+              <mat-error> Please enter a valid email </mat-error>
             }
           </mat-form-field>
-        }
 
-        <button
-          mat-raised-button
-          color="primary"
-          type="submit"
-          [disabled]="
-            (isRegisterMode ? registerForm : loginForm).invalid || isLoading
-          "
-        >
-          {{
-            isLoading
-              ? isRegisterMode
-                ? "Registering..."
-                : "Logging in..."
-              : isRegisterMode
-                ? "Register"
-                : "Login"
-          }}
-        </button>
+          <mat-form-field appearance="outline">
+            <mat-label>Password</mat-label>
+            <input
+              matInput
+              type="password"
+              formControlName="password"
+              required
+            />
+            @if (
+              (isRegisterMode ? registerForm : loginForm)
+                .get("password")
+                ?.hasError("required")
+            ) {
+              <mat-error> Password is required </mat-error>
+            }
+            @if (
+              registerForm.get("password")?.hasError("minlength") &&
+              isRegisterMode
+            ) {
+              <mat-error> Password must be at least 6 characters </mat-error>
+            }
+          </mat-form-field>
 
-        @if (errorMessage) {
-          <div class="error-message" role="alert">{{ errorMessage }}</div>
-        }
-      </form>
+          @if (isRegisterMode) {
+            <mat-form-field appearance="outline">
+              <mat-label>Name</mat-label>
+              <input matInput type="text" formControlName="name" required />
+              @if (registerForm.get("name")?.hasError("required")) {
+                <mat-error> Name is required </mat-error>
+              }
+
+              @if (registerForm.get("name")?.hasError("maxlength")) {
+                <mat-error> Name cannot exceed 50 characters </mat-error>
+              }
+            </mat-form-field>
+          }
+
+          <button
+            mat-raised-button
+            color="primary"
+            type="submit"
+            [disabled]="
+              (isRegisterMode ? registerForm : loginForm).invalid || isLoading
+            "
+          >
+            {{
+              isLoading
+                ? isRegisterMode
+                  ? "Registering..."
+                  : "Logging in..."
+                : isRegisterMode
+                  ? "Register"
+                  : "Login"
+            }}
+          </button>
+        </form>
+      }
+      @if (errorMessage) {
+        <div class="error-message" role="alert">{{ errorMessage }}</div>
+      }
     </mat-card-content>
 
     <mat-card-actions>

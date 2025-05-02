@@ -17,13 +17,32 @@ This is a simple, non-commercial web platform for art enthusiasts to **showcase 
 - File/image upload support
 - Optional: Serverless deployment via AWS Lambda + API Gateway
 
-### Cloud & Storage (Free Tier AWS)
-- **S3** – Static hosting for frontend & image uploads
-- **CloudFront** – CDN (optional)
-- **DynamoDB** – Store metadata like artist info and artwork entries
-- **Lambda** – Run backend APIs (or fallback to EC2)
-- **API Gateway** – Public REST API
-- **Cognito** – (optional) if auth is needed in the future
+### Cloud & Storage (AWS Free Tier)
+- **S3** 
+  - Static hosting for frontend
+  - Image uploads storage
+  - Bucket policies for public/private access
+- **CloudFront** 
+  - CDN for global content delivery
+  - HTTPS support
+  - Cache optimization
+- **DynamoDB**
+  - Store metadata (artist info, artwork entries)
+  - Secondary indexes for efficient queries
+  - TTL for temporary data
+- **Lambda**
+  - Run backend APIs
+  - Image processing
+  - Thumbnail generation
+- **API Gateway**
+  - RESTful API endpoints
+  - API key management
+  - Request throttling
+- **Cognito**
+  - User authentication
+  - OAuth2 social login (Google, Facebook)
+  - JWT token management
+  - User pools and identity pools
 
 ## 🗂 Project Structure
 
@@ -62,14 +81,14 @@ art-platform/
 - Sample gallery layout using Material Cards
 - Routing in place
 
-## 🛠️ TODO (Next Steps)
-
 ### 🔹 Frontend
 - Implement Submit Form with:
   - Title, description, image upload, external link, artist info
   - Form validation (Reactive Forms)
 - Create shared `ArtItem` and `Artist` models
 - Add service (`api.service.ts`) to call backend
+
+## 🛠️ TODO (Next Steps)
 
 ### 🔹 Backend
 - Setup Node.js + Express app

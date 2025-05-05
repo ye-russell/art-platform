@@ -4,6 +4,8 @@ import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { Artwork } from '../../shared/models';
+import { ApiService } from '../../core/api.service';
 
 @Component({
   selector: 'app-submit',
@@ -19,8 +21,9 @@ import { MatButtonModule } from '@angular/material/button';
 })
 export class SubmitComponent {
   submitForm!: FormGroup;
+  isLoading = false;
 
-  constructor(private fb: FormBuilder) {}
+  constructor(private fb: FormBuilder, private apiService: ApiService) {}
 
   ngOnInit(): void {
     this.initializeForm();
@@ -41,9 +44,18 @@ export class SubmitComponent {
 
   onSubmit(): void {
     if (this.submitForm.valid) {
-      console.log('Form Submitted:', this.submitForm.value);
-    } else {
-      console.log('Form is invalid');
+      this.isLoading = true;
+      const artwork: Artwork = this.submitForm.value;
+      console.log('Submitting artwork:', artwork); // Log the artwork for debugging
+      this.apiService.addArtwork(artwork).subscribe({
+        next: () => {
+          this.isLoading = false;
+          this.submitForm.reset();
+        },
+        error: (error) => {
+          this.isLoading = false;
+        },
+      });
     }
   }
 

@@ -1,121 +1,111 @@
+# Art Platform
 
-# 🎨 Art Platform (MVP)
+A full-stack web application for artists to showcase and sell their artwork, built with Angular, Node.js Express, and AWS services.
 
-This is a simple, non-commercial web platform for art enthusiasts to **showcase their artwork**. Artists can list their creations, provide descriptions, and include links to external sites (like Instagram, Etsy, personal websites) along with contact information.
+## Architecture
 
-## 🧩 Tech Stack
+This project uses the following AWS services:
 
-### Frontend
-- **Angular** with **Angular Material**
-- Angular use modern approach without modules
-- Responsive UI for desktop/mobile
-- Page-based routing and basic state management
+- **Amazon Cognito**: User authentication and authorization
+- **Amazon DynamoDB**: NoSQL database for storing artist and artwork data
+- **Amazon S3**: Storage for static website hosting and artwork images
+- **Amazon CloudFront**: Content delivery network for the frontend
+- **AWS Lambda**: Serverless backend API
+- **Amazon API Gateway**: API management and routing
+- **AWS CDK**: Infrastructure as code
 
-### Backend
-- **Node.js** with **Express**
-- REST API for managing artists and artwork
-- File/image upload support
-- Optional: Serverless deployment via AWS Lambda + API Gateway
+## Project Structure
 
-### Cloud & Storage (AWS Free Tier)
-- **S3** 
-  - Static hosting for frontend
-  - Image uploads storage
-  - Bucket policies for public/private access
-- **CloudFront** 
-  - CDN for global content delivery
-  - HTTPS support
-  - Cache optimization
-- **DynamoDB**
-  - Store metadata (artist info, artwork entries)
-  - Secondary indexes for efficient queries
-  - TTL for temporary data
-- **Lambda**
-  - Run backend APIs
-  - Image processing
-  - Thumbnail generation
-- **API Gateway**
-  - RESTful API endpoints
-  - API key management
-  - Request throttling
-- **Cognito**
-  - User authentication
-  - OAuth2 social login (Google, Facebook)
-  - JWT token management
-  - User pools and identity pools
+- `/my-angular-app`: Angular frontend application
+- `/server`: Local Express.js server for development
+- `/server-lambda`: Lambda function for production API
+- `/infrastructure`: AWS CDK code for deploying infrastructure
 
-## 🗂 Project Structure
+## Getting Started
 
-```
-art-platform/
-├── client/                 # Angular frontend app
-│   ├── src/app/
-│   │   ├── core/           # Services (API, etc.)
-│   │   ├── shared/         # Shared models, components
-│   │   └── pages/          # Home, Gallery, Artist, Submit
-│   └── angular.json
-├── server/                 # Node.js backend API
-│   ├── routes/
-│   ├── controllers/
-│   ├── models/
-│   └── index.js
-├── deploy/                 # AWS deploy scripts (Lambda, S3, etc.)
-│   └── cloudformation.yml
-└── README.md
+### Prerequisites
+
+- Node.js (v16+)
+- AWS CLI configured with appropriate credentials
+- AWS CDK installed globally (`npm install -g aws-cdk`)
+
+### Local Development
+
+1. Install dependencies for the Angular app:
+
+```bash
+cd my-angular-app
+npm install
 ```
 
-## ✨ Features (MVP Scope)
+2. Install dependencies for the Express server:
 
-- 🌐 Public site to browse artwork
-- 🧑 Artist profiles with bio and links
-- 🖼 Art listing cards (title, image, description, link)
-- 📬 Submission form to add new artwork/profile
-- 🔁 REST API to support the above
-- ☁️ AWS Free Tier deployment
+```bash
+cd server
+npm install
+```
 
-## ✅ What's Done
+3. Start the Express server:
 
-- Angular project set up
-- Angular Material configured
-- Pages scaffolded: `Home`, `Gallery`, `Artist`, `Submit`
-- Sample gallery layout using Material Cards
-- Routing in place
+```bash
+cd server
+npm start
+```
 
-### 🔹 Frontend
-- Implement Submit Form with:
-  - Title, description, image upload, external link, artist info
-  - Form validation (Reactive Forms)
-- Create shared `ArtItem` and `Artist` models
-- Add service (`api.service.ts`) to call backend
+4. Start the Angular app:
 
-## 🛠️ TODO (Next Steps)
+```bash
+cd my-angular-app
+ng serve
+```
 
-### 🔹 Backend
-- Setup Node.js + Express app
-- Create REST API endpoints:
-  - `GET /api/artworks`
-  - `POST /api/artworks`
-  - `GET /api/artists`
-  - `POST /api/artists`
-- Integrate with AWS S3 for image uploads
-- Connect with DynamoDB to store metadata
+5. Open your browser and navigate to `http://localhost:4200`
 
-### 🔹 AWS (Deployment)
-- Host Angular app on S3 with static hosting
-- Deploy backend via Lambda + API Gateway
-- Set up IAM roles and policies
-- Optional: Add CloudFront CDN and Cognito auth
+### Deploying to AWS
 
-## 💡 Notes
+1. Install dependencies for the CDK project:
 
-- Project is intended for **non-commercial** use, using **AWS Free Tier**
-- Focus is on **discoverability**, not transactions
-- Goal is to provide artists with a platform to **showcase and connect**
+```bash
+cd infrastructure
+npm install
+```
 
-## 🤝 Contributions
+2. Bootstrap your AWS environment (only needed once per AWS account/region):
 
-Solo project for now, but future contributions might involve:
-- Admin dashboard
-- SEO optimization
-- Artist verification
-- More advanced filtering/sorting in the gallery
+```bash
+cd infrastructure
+npm run bootstrap
+```
+
+3. Deploy the infrastructure:
+
+```bash
+cd infrastructure
+npm run deploy
+```
+
+4. After deployment, update the Angular environment with Cognito settings:
+
+```bash
+cd my-angular-app
+chmod +x get-cognito-config.sh
+./get-cognito-config.sh
+```
+
+5. Build and deploy the Angular app:
+
+```bash
+cd my-angular-app
+ng build --configuration production
+```
+
+## Development Workflow
+
+1. Make changes to the Angular app or Express server
+2. Test locally
+3. Update CDK code if infrastructure changes are needed
+4. Deploy to AWS
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

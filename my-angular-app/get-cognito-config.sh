@@ -1,30 +1,19 @@
 #!/bin/bash
 
-# Get the values from AWS
-USER_POOL_ID=$(aws cognito-idp list-user-pools --max-results 1 --query 'UserPools[0].Id' --output text)
-CLIENT_ID=$(aws cognito-idp list-user-pool-clients --user-pool-id $USER_POOL_ID --query 'UserPoolClients[0].ClientId' --output text)
-REGION=$(aws configure get region)
+# This script retrieves Cognito configuration from CloudFormation outputs
+# and updates the Angular environment files
 
-# Create environment.ts file
-cat > src/environments/environment.ts << EOF
-export const environment = {
-  production: false,
-  userPoolId: '${USER_POOL_ID}',
-  userPoolClientId: '${CLIENT_ID}'
-};
-EOF
+# Get stack outputs
+USER_POOL_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformAuth --query "Stacks[0].Outputs[?OutputKey=='UserPoolId'].OutputValue" --output text)
+USER_POOL_CLIENT_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformAuth --query "Stacks[0].Outputs[?OutputKey=='UserPoolClientId'].OutputValue" --output text)
+API_ENDPOINT=$(aws cloudformation describe-stacks --stack-name ArtPlatformApi --query "Stacks[0].Outputs[?OutputKey=='ApiEndpoint'].OutputValue" --output text)
 
-# Create environment.prod.ts file
-cat > src/environments/environment.prod.ts << EOF
-export const environment = {
-  production: true,
-  userPoolId: '${USER_POOL_ID}',
-  userPoolClientId: '${CLIENT_ID}'
-};
-EOF
+# Update environment.ts
+sed -i "s|userPoolId: ''|userPoolId: '$USER_POOL_ID'|g" src/environments/environment.ts
+sed -i "s|userPoolWebClientId: ''|userPoolWebClientId: '$USER_POOL_CLIENT_ID'|g" src/environments/environment.ts
+sed -i "s|apiUrl: 'http://localhost:5000/api'|apiUrl: '$API_ENDPOINT'|g" src/environments/environment.ts
 
-# Output the values
-echo "Configuration has been updated with:"
-echo "User Pool ID: ${USER_POOL_ID}"
-echo "Client ID: ${CLIENT_ID}"
-echo "Region: ${REGION}"
+echo "Updated environment.ts with Cognito configuration"
+echo "UserPoolId: $USER_POOL_ID"
+echo "UserPoolClientId: $USER_POOL_CLIENT_ID"
+echo "API Endpoint: $API_ENDPOINT"

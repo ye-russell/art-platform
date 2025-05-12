@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -15,11 +15,11 @@ import { ApiService } from '../../core/api.service';
     MatInputModule,
     MatButtonModule,
   ],
-
   templateUrl: './submit.component.html',
   styleUrl: './submit.component.css',
+  standalone: true,
 })
-export class SubmitComponent {
+export class SubmitComponent implements OnInit {
   submitForm!: FormGroup;
   isLoading = false;
 
@@ -52,8 +52,9 @@ export class SubmitComponent {
           this.isLoading = false;
           this.submitForm.reset();
         },
-        error: (error) => {
+        error: (error: Error) => {
           this.isLoading = false;
+          console.error('Error submitting artwork:', error);
         },
       });
     }

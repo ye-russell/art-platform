@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { Artwork } from '../../shared/models';
 import { ApiService } from '../../core/api.service';
@@ -11,7 +11,7 @@ import { ApiService } from '../../core/api.service';
   imports: [MatCardModule],
 })
 
-export class GalleryComponent {
+export class GalleryComponent implements OnInit {
   artworks: Artwork[] = [];
   errorMessage = '';
 
@@ -23,10 +23,10 @@ export class GalleryComponent {
 
   private loadArtworks(): void {
     this.apiService.getArtworks().subscribe({
-      next: (data) => {
+      next: (data: Artwork[]) => {
         this.artworks = data;
       },
-      error: (error) => {
+      error: (error: Error) => {
         this.errorMessage = error.message || 'Failed to load artworks';
       },
     });

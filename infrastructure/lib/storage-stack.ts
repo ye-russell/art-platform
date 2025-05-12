@@ -12,7 +12,7 @@ export class StorageStack extends cdk.Stack {
     super(scope, id, props);
 
     // Frontend hosting bucket
-    this.frontendBucket = new s3.Bucket(this, 'XXXXXXXXXXXXXX', {
+    this.frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
       websiteIndexDocument: 'index.html',
       websiteErrorDocument: 'error.html',
       publicReadAccess: true,
@@ -32,7 +32,7 @@ export class StorageStack extends cdk.Stack {
     });
 
     // Assets bucket for artwork images (private by default)
-    this.assetsBucket = new s3.Bucket(this, 'XXXXXXXXXXXX', {
+    this.assetsBucket = new s3.Bucket(this, 'AssetsBucket', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       cors: [{
         allowedMethods: [s3.HttpMethods.PUT, s3.HttpMethods.GET],

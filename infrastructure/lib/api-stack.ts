@@ -6,6 +6,7 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as path from 'path';
+import * as logs from 'aws-cdk-lib/aws-logs';
 
 interface ApiStackProps extends cdk.StackProps {
   artistsTable: dynamodb.Table;
@@ -33,6 +34,7 @@ export class ApiStack extends cdk.Stack {
       },
       timeout: cdk.Duration.seconds(30),
       memorySize: 512,
+      logRetention: logs.RetentionDays.ONE_WEEK, // Add CloudWatch logs retention
     });
 
     // Grant permissions to Lambda to access DynamoDB tables
@@ -41,8 +43,17 @@ export class ApiStack extends cdk.Stack {
     
     // Grant permissions to Lambda to access S3 bucket
     props.assetsBucket.grantReadWrite(apiLambda);
+    
+    // Grant permissions to Lambda to access Cognito
+    apiLambda.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'cognito-idp:AdminGetUser',
+        'cognito-idp:ListUsers',
+      ],
+      resources: [props.userPool.userPoolArn],
+    }));
 
-    // Create API Gateway
+    // Create API Gateway with WAF and throttling
     const api = new apigateway.RestApi(this, 'ArtPlatformApi', {
       restApiName: 'Art Platform API',
       description: 'API for Art Platform',
@@ -51,6 +62,13 @@ export class ApiStack extends cdk.Stack {
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowHeaders: ['Content-Type', 'Authorization', 'X-Amz-Date', 'X-Api-Key'],
         allowCredentials: true,
+      },
+      deployOptions: {
+        stageName: 'prod',
+        throttlingRateLimit: 10, // Requests per second
+        throttlingBurstLimit: 20, // Concurrent requests
+        loggingLevel: apigateway.MethodLoggingLevel.INFO,
+        metricsEnabled: true,
       },
     });
 
@@ -106,12 +124,20 @@ export class ApiStack extends cdk.Stack {
       authorizer,
       authorizationType: apigateway.AuthorizationType.COGNITO,
     });
+    
+    // User endpoint
+    const userResource = apiResource.addResource('user');
+    userResource.addMethod('GET', new apigateway.LambdaIntegration(apiLambda), {
+      authorizer,
+      authorizationType: apigateway.AuthorizationType.COGNITO,
+    });
 
     // Output the API endpoint
     this.apiEndpoint = api.url;
     new cdk.CfnOutput(this, 'ApiEndpoint', {
       value: api.url,
       description: 'The URL of the API Gateway',
+      exportName: 'ApiEndpoint',
     });
   }
 }

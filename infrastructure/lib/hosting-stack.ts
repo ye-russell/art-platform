@@ -2,7 +2,6 @@ import * as cdk from 'aws-cdk-lib';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
-import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as path from 'path';
 
 interface HostingStackProps extends cdk.StackProps {
@@ -17,18 +16,21 @@ export class HostingStack extends cdk.Stack {
 
     // Deploy Angular app to S3
     new s3deploy.BucketDeployment(this, 'DeployAngularApp', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../../my-angular-app/dist/my-angular-app'))],
+      sources: [s3deploy.Source.asset(path.join(__dirname, '../../my-angular-app/dist/my-angular-app/browser'))],
       destinationBucket: props.frontendBucket,
       distribution: props.distribution,
       distributionPaths: ['/*'],
     });
 
     // Create config.json with environment variables for the Angular app
-    const configFile = new s3deploy.BucketDeployment(this, 'DeployConfig', {
+    new s3deploy.BucketDeployment(this, 'DeployConfig', {
       sources: [
         s3deploy.Source.jsonData('config.json', {
           apiEndpoint: props.apiEndpoint,
           region: this.region,
+          userPoolId: cdk.Fn.importValue('UserPoolId'),
+          userPoolWebClientId: cdk.Fn.importValue('UserPoolClientId'),
+          oauthDomain: cdk.Fn.importValue('UserPoolDomainUrl')
         }),
       ],
       destinationBucket: props.frontendBucket,
@@ -39,6 +41,7 @@ export class HostingStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'WebsiteURL', {
       value: `https://${props.distribution.distributionDomainName}`,
       description: 'The URL of the deployed website',
+      exportName: 'WebsiteURL'
     });
   }
 }

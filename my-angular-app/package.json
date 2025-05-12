@@ -5,8 +5,11 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:prod": "ng build --configuration production",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "start:local-aws": "ng serve --configuration=local-aws",
+    "deploy": "npm run build:prod && aws s3 sync dist/my-angular-app/browser s3://FRONTEND_BUCKET_NAME --delete"
   },
   "private": true,
   "dependencies": {
@@ -36,6 +39,6 @@
     "karma-coverage": "~2.2.0",
     "karma-jasmine": "~5.1.0",
     "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "~5.4.2"
+    "typescript": "~5.5.0"
   }
 }

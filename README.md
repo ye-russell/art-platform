@@ -1,111 +1,126 @@
 # Art Platform
 
-A full-stack web application for artists to showcase and sell their artwork, built with Angular, Node.js Express, and AWS services.
+A full-stack web application for artists to showcase and sell their artwork, built with Angular and AWS services.
 
 ## Architecture
 
-This project uses the following AWS services:
+This application uses the following AWS services:
 
-- **Amazon Cognito**: User authentication and authorization
-- **Amazon DynamoDB**: NoSQL database for storing artist and artwork data
-- **Amazon S3**: Storage for static website hosting and artwork images
-- **Amazon CloudFront**: Content delivery network for the frontend
-- **AWS Lambda**: Serverless backend API
-- **Amazon API Gateway**: API management and routing
-- **AWS CDK**: Infrastructure as code
+- **Amazon S3**: For hosting the Angular frontend and storing artwork images
+- **Amazon CloudFront**: For content delivery and HTTPS
+- **Amazon Cognito**: For user authentication and authorization
+- **Amazon DynamoDB**: For storing artist and artwork data
+- **AWS Lambda**: For serverless API backend
+- **Amazon API Gateway**: For API management and security
+
+## Prerequisites
+
+Before deploying the application, make sure you have:
+
+1. **AWS CLI** installed and configured with appropriate credentials
+2. **Node.js** and **npm** installed
+3. **AWS CDK** installed globally (`npm install -g aws-cdk`)
+
+## Deployment
+
+### Option 1: Automated Deployment (Recommended)
+
+Run the deployment script:
+
+```bash
+# On Windows
+deploy.bat
+
+# On macOS/Linux
+chmod +x deploy.sh
+./deploy.sh
+```
+
+This script will:
+1. Install dependencies for the Lambda function
+2. Build the Angular application for production
+3. Deploy all AWS infrastructure using CDK
+4. Upload the Angular app to the S3 bucket
+5. Invalidate the CloudFront cache
+
+### Option 2: Manual Deployment
+
+1. **Deploy the AWS infrastructure**:
+   ```bash
+   cd infrastructure
+   npm install
+   npm run build
+   npm run bootstrap  # Only needed the first time in an AWS account/region
+   npm run deploy
+   ```
+
+2. **Build and deploy the Angular app**:
+   ```bash
+   cd my-angular-app
+   npm install
+   npm run build:prod
+   
+   # Get the S3 bucket name from CloudFormation outputs
+   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
+   
+   # Upload to S3
+   aws s3 sync dist/my-angular-app/browser s3://$BUCKET_NAME --delete
+   ```
+
+3. **Invalidate CloudFront cache** (optional):
+   ```bash
+   # Get the CloudFront distribution ID
+   DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items!=null] | [?contains(Aliases.Items, '$BUCKET_NAME')] | [0].Id" --output text)
+   
+   # Create invalidation
+   aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
+   ```
+
+## Local Development
+
+To run the application locally with AWS services:
+
+1. **Get AWS configuration**:
+   ```bash
+   # On Windows
+   get-aws-config.bat
+   
+   # On macOS/Linux
+   chmod +x get-aws-config.sh
+   ./get-aws-config.sh
+   ```
+
+2. **Start the Angular app**:
+   ```bash
+   cd my-angular-app
+   npm run start:local-aws
+   ```
 
 ## Project Structure
 
-- `/my-angular-app`: Angular frontend application
-- `/server`: Local Express.js server for development
-- `/server-lambda`: Lambda function for production API
-- `/infrastructure`: AWS CDK code for deploying infrastructure
+- **infrastructure/**: AWS CDK code for infrastructure deployment
+  - **lib/**: Stack definitions for different AWS resources
+  - **bin/**: Entry point for CDK app
+  
+- **my-angular-app/**: Angular frontend application
+  - **src/**: Source code
+  - **src/app/**: Angular components, services, etc.
+  - **src/environments/**: Environment configuration files
+  
+- **server-lambda/**: Lambda function code for the API backend
 
-## Getting Started
+## Testing
 
-### Prerequisites
+- **Angular app**: `cd my-angular-app && npm test`
+- **Infrastructure**: `cd infrastructure && npm test`
 
-- Node.js (v16+)
-- AWS CLI configured with appropriate credentials
-- AWS CDK installed globally (`npm install -g aws-cdk`)
+## Cleanup
 
-### Local Development
-
-1. Install dependencies for the Angular app:
-
-```bash
-cd my-angular-app
-npm install
-```
-
-2. Install dependencies for the Express server:
-
-```bash
-cd server
-npm install
-```
-
-3. Start the Express server:
-
-```bash
-cd server
-npm start
-```
-
-4. Start the Angular app:
-
-```bash
-cd my-angular-app
-ng serve
-```
-
-5. Open your browser and navigate to `http://localhost:4200`
-
-### Deploying to AWS
-
-1. Install dependencies for the CDK project:
+To remove all deployed resources:
 
 ```bash
 cd infrastructure
-npm install
+npm run destroy
 ```
 
-2. Bootstrap your AWS environment (only needed once per AWS account/region):
-
-```bash
-cd infrastructure
-npm run bootstrap
-```
-
-3. Deploy the infrastructure:
-
-```bash
-cd infrastructure
-npm run deploy
-```
-
-4. After deployment, update the Angular environment with Cognito settings:
-
-```bash
-cd my-angular-app
-chmod +x get-cognito-config.sh
-./get-cognito-config.sh
-```
-
-5. Build and deploy the Angular app:
-
-```bash
-cd my-angular-app
-ng build --configuration production
-```
-
-## Development Workflow
-
-1. Make changes to the Angular app or Express server
-2. Test locally
-3. Update CDK code if infrastructure changes are needed
-4. Deploy to AWS
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+Note: This will delete all resources except those with a removal policy of RETAIN (like the DynamoDB tables and S3 asset bucket).

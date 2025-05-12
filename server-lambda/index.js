@@ -4,11 +4,13 @@ const { v4: uuidv4 } = require('uuid');
 // Initialize AWS services
 const dynamodb = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
+const cognito = new AWS.CognitoIdentityServiceProvider();
 
 // Environment variables from CDK
 const ARTISTS_TABLE = process.env.ARTISTS_TABLE;
 const ARTWORKS_TABLE = process.env.ARTWORKS_TABLE;
 const ASSETS_BUCKET = process.env.ASSETS_BUCKET;
+const USER_POOL_ID = process.env.USER_POOL_ID;
 
 // Lambda handler
 exports.handler = async (event) => {
@@ -22,13 +24,25 @@ exports.handler = async (event) => {
     const queryStringParameters = event.queryStringParameters || {};
     const body = event.body ? JSON.parse(event.body) : {};
     
+    // Get user information from the request if available
+    let userId = null;
+    let userEmail = null;
+    
+    if (event.requestContext && event.requestContext.authorizer && event.requestContext.authorizer.claims) {
+      userId = event.requestContext.authorizer.claims.sub;
+      userEmail = event.requestContext.authorizer.claims.email;
+      console.log(`Request from authenticated user: ${userId} (${userEmail})`);
+    }
+    
     // Route the request based on path and method
     if (path.startsWith('/api/artists')) {
-      return await handleArtistsRoute(httpMethod, pathParameters, queryStringParameters, body);
+      return await handleArtistsRoute(httpMethod, pathParameters, queryStringParameters, body, userId);
     } else if (path.startsWith('/api/artworks')) {
-      return await handleArtworksRoute(httpMethod, pathParameters, queryStringParameters, body);
+      return await handleArtworksRoute(httpMethod, pathParameters, queryStringParameters, body, userId);
     } else if (path.startsWith('/api/uploads')) {
-      return await handleUploadsRoute(httpMethod, body);
+      return await handleUploadsRoute(httpMethod, body, userId);
+    } else if (path.startsWith('/api/user')) {
+      return await handleUserRoute(httpMethod, userId, userEmail);
     } else {
       return buildResponse(404, { message: 'Not Found' });
     }
@@ -38,8 +52,59 @@ exports.handler = async (event) => {
   }
 };
 
+// Handle user routes
+async function handleUserRoute(httpMethod, userId, userEmail) {
+  if (httpMethod !== 'GET') {
+    return buildResponse(405, { message: 'Method Not Allowed' });
+  }
+  
+  if (!userId) {
+    return buildResponse(401, { message: 'Unauthorized' });
+  }
+  
+  try {
+    // Get user from Cognito
+    const params = {
+      UserPoolId: USER_POOL_ID,
+      Username: userId
+    };
+    
+    const cognitoUser = await cognito.adminGetUser(params).promise();
+    
+    // Check if user is an artist
+    const artistParams = {
+      TableName: ARTISTS_TABLE,
+      IndexName: 'UserIdIndex', // You'll need to create this GSI
+      KeyConditionExpression: 'userId = :userId',
+      ExpressionAttributeValues: {
+        ':userId': userId
+      }
+    };
+    
+    let artistProfile = null;
+    try {
+      const artistResult = await dynamodb.query(artistParams).promise();
+      if (artistResult.Items && artistResult.Items.length > 0) {
+        artistProfile = artistResult.Items[0];
+      }
+    } catch (err) {
+      console.log('User is not an artist yet:', err);
+    }
+    
+    return buildResponse(200, {
+      userId,
+      email: userEmail,
+      isArtist: !!artistProfile,
+      artistProfile
+    });
+  } catch (error) {
+    console.error('Error getting user:', error);
+    return buildResponse(500, { message: 'Error getting user information' });
+  }
+}
+
 // Handle artists routes
-async function handleArtistsRoute(httpMethod, pathParameters, queryStringParameters, body) {
+async function handleArtistsRoute(httpMethod, pathParameters, queryStringParameters, body, userId) {
   const artistId = pathParameters.artistId;
   
   switch (httpMethod) {
@@ -68,9 +133,14 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
       }
       
     case 'POST':
-      // Create a new artist
+      // Create a new artist - requires authentication
+      if (!userId) {
+        return buildResponse(401, { message: 'Authentication required' });
+      }
+      
       const newArtist = {
         artistId: uuidv4(),
+        userId: userId, // Link to Cognito user
         name: body.name,
         bio: body.bio,
         email: body.email,
@@ -88,6 +158,20 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
     case 'PUT':
       if (!artistId) {
         return buildResponse(400, { message: 'Artist ID is required' });
+      }
+      
+      // Verify ownership
+      if (userId) {
+        const artistRecord = await dynamodb.get({
+          TableName: ARTISTS_TABLE,
+          Key: { artistId }
+        }).promise();
+        
+        if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
+          return buildResponse(403, { message: 'Not authorized to update this artist' });
+        }
+      } else {
+        return buildResponse(401, { message: 'Authentication required' });
       }
       
       // Update an existing artist
@@ -114,6 +198,20 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
         return buildResponse(400, { message: 'Artist ID is required' });
       }
       
+      // Verify ownership
+      if (userId) {
+        const artistRecord = await dynamodb.get({
+          TableName: ARTISTS_TABLE,
+          Key: { artistId }
+        }).promise();
+        
+        if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
+          return buildResponse(403, { message: 'Not authorized to delete this artist' });
+        }
+      } else {
+        return buildResponse(401, { message: 'Authentication required' });
+      }
+      
       // Delete an artist
       await dynamodb.delete({
         TableName: ARTISTS_TABLE,
@@ -128,7 +226,7 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
 }
 
 // Handle artworks routes
-async function handleArtworksRoute(httpMethod, pathParameters, queryStringParameters, body) {
+async function handleArtworksRoute(httpMethod, pathParameters, queryStringParameters, body, userId) {
   const artworkId = pathParameters.artworkId;
   
   switch (httpMethod) {
@@ -171,7 +269,25 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       }
       
     case 'POST':
-      // Create a new artwork
+      // Create a new artwork - requires authentication
+      if (!userId) {
+        return buildResponse(401, { message: 'Authentication required' });
+      }
+      
+      // Verify the user is the artist
+      if (body.artistId) {
+        const artistRecord = await dynamodb.get({
+          TableName: ARTISTS_TABLE,
+          Key: { artistId: body.artistId }
+        }).promise();
+        
+        if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
+          return buildResponse(403, { message: 'Not authorized to create artwork for this artist' });
+        }
+      } else {
+        return buildResponse(400, { message: 'Artist ID is required' });
+      }
+      
       const newArtwork = {
         artworkId: uuidv4(),
         artistId: body.artistId,
@@ -193,6 +309,30 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
     case 'PUT':
       if (!artworkId) {
         return buildResponse(400, { message: 'Artwork ID is required' });
+      }
+      
+      // Verify ownership
+      if (userId) {
+        const artworkRecord = await dynamodb.get({
+          TableName: ARTWORKS_TABLE,
+          Key: { artworkId }
+        }).promise();
+        
+        if (!artworkRecord.Item) {
+          return buildResponse(404, { message: 'Artwork not found' });
+        }
+        
+        // Get the artist to verify ownership
+        const artistRecord = await dynamodb.get({
+          TableName: ARTISTS_TABLE,
+          Key: { artistId: artworkRecord.Item.artistId }
+        }).promise();
+        
+        if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
+          return buildResponse(403, { message: 'Not authorized to update this artwork' });
+        }
+      } else {
+        return buildResponse(401, { message: 'Authentication required' });
       }
       
       // Update an existing artwork
@@ -217,6 +357,30 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
         return buildResponse(400, { message: 'Artwork ID is required' });
       }
       
+      // Verify ownership
+      if (userId) {
+        const artworkRecord = await dynamodb.get({
+          TableName: ARTWORKS_TABLE,
+          Key: { artworkId }
+        }).promise();
+        
+        if (!artworkRecord.Item) {
+          return buildResponse(404, { message: 'Artwork not found' });
+        }
+        
+        // Get the artist to verify ownership
+        const artistRecord = await dynamodb.get({
+          TableName: ARTISTS_TABLE,
+          Key: { artistId: artworkRecord.Item.artistId }
+        }).promise();
+        
+        if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
+          return buildResponse(403, { message: 'Not authorized to delete this artwork' });
+        }
+      } else {
+        return buildResponse(401, { message: 'Authentication required' });
+      }
+      
       // Delete an artwork
       await dynamodb.delete({
         TableName: ARTWORKS_TABLE,
@@ -231,9 +395,14 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
 }
 
 // Handle uploads route for S3 presigned URLs
-async function handleUploadsRoute(httpMethod, body) {
+async function handleUploadsRoute(httpMethod, body, userId) {
   if (httpMethod !== 'POST') {
     return buildResponse(405, { message: 'Method Not Allowed' });
+  }
+  
+  // Require authentication
+  if (!userId) {
+    return buildResponse(401, { message: 'Authentication required' });
   }
   
   const fileType = body.fileType;
@@ -243,7 +412,8 @@ async function handleUploadsRoute(httpMethod, body) {
     return buildResponse(400, { message: 'fileType and fileName are required' });
   }
   
-  const fileKey = `uploads/${uuidv4()}-${fileName}`;
+  // Use userId in the file path for better organization
+  const fileKey = `uploads/${userId}/${uuidv4()}-${fileName}`;
   
   const params = {
     Bucket: ASSETS_BUCKET,

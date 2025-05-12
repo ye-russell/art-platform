@@ -12,13 +12,20 @@ export class DatabaseStack extends cdk.Stack {
       partitionKey: { name: 'artistId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable point-in-time recovery for data protection
+    });
+
+    // Add GSI for querying artists by Cognito user ID
+    this.artistsTable.addGlobalSecondaryIndex({
+      indexName: 'UserIdIndex',
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
     });
 
     this.artworksTable = new dynamodb.Table(this, 'Artworks', {
       partitionKey: { name: 'artworkId', type: dynamodb.AttributeType.STRING },
-      sortKey: { name: 'artistId', type: dynamodb.AttributeType.STRING },
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
       removalPolicy: cdk.RemovalPolicy.RETAIN,
+      pointInTimeRecovery: true, // Enable point-in-time recovery for data protection
     });
 
     // Add GSI for querying artworks by artist
@@ -26,6 +33,19 @@ export class DatabaseStack extends cdk.Stack {
       indexName: 'ArtistArtworks',
       partitionKey: { name: 'artistId', type: dynamodb.AttributeType.STRING },
       sortKey: { name: 'createdAt', type: dynamodb.AttributeType.STRING },
+    });
+
+    // Export table names
+    new cdk.CfnOutput(this, 'ArtistsTableName', {
+      value: this.artistsTable.tableName,
+      description: 'The name of the artists table',
+      exportName: 'ArtistsTableName',
+    });
+
+    new cdk.CfnOutput(this, 'ArtworksTableName', {
+      value: this.artworksTable.tableName,
+      description: 'The name of the artworks table',
+      exportName: 'ArtworksTableName',
     });
   }
 }

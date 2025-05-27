@@ -66,10 +66,19 @@ cd ..
 
 # Step 7: Invalidate CloudFront cache
 echo -e "${GREEN}Getting CloudFront distribution ID...${NC}"
-DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDomainName'].OutputValue" --output text)
+# Try to get distribution ID directly, or find it using the domain name
+DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" --output text)
 
-if [ -n "$DISTRIBUTION_ID" ]; then
-    echo -e "${GREEN}Invalidating CloudFront cache...${NC}"
+# If not found, try to get it from the distribution domain name
+if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" == "None" ]; then
+    DOMAIN_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDomainName'].OutputValue" --output text)
+    if [ -n "$DOMAIN_NAME" ]; then
+        DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?DomainName=='$DOMAIN_NAME'].Id" --output text)
+    fi
+fi
+
+if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
+    echo -e "${GREEN}Invalidating CloudFront cache for distribution: $DISTRIBUTION_ID...${NC}"
     aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths "/*"
 else
     echo -e "${YELLOW}CloudFront distribution ID not found. Skipping cache invalidation.${NC}"

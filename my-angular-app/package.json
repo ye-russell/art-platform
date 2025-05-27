@@ -9,12 +9,13 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "start:local-aws": "ng serve --configuration=local-aws",
-    "deploy": "npm run build:prod && aws s3 sync dist/my-angular-app/browser s3://FRONTEND_BUCKET_NAME --delete"
+    "deploy": "npm run build:prod && aws s3 sync dist/my-angular-app/browser s3://$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query \"Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue\" --output text) --delete"
   },
   "private": true,
   "dependencies": {
     "@angular/animations": "^19.2.0",
     "@angular/cdk": "^19.2.0",
+    "@angular/cli": "^19.2.0",
     "@angular/common": "^19.2.0",
     "@angular/compiler": "^19.2.0",
     "@angular/core": "^19.2.0",
@@ -26,7 +27,7 @@
     "aws-amplify": "^6.0.15",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
-    "zone.js": "~0.14.3"
+    "zone.js": "^0.15.0"
   },
   "devDependencies": {
     "@angular-devkit/build-angular": "^19.2.3",

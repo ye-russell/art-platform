@@ -53,6 +53,14 @@ export class ApiStack extends cdk.Stack {
       resources: [props.userPool.userPoolArn],
     }));
 
+    // Create CloudWatch Logs role for API Gateway
+    const apiGatewayLogsRole = new iam.Role(this, 'ApiGatewayLogsRole', {
+      assumedBy: new iam.ServicePrincipal('apigateway.amazonaws.com'),
+      managedPolicies: [
+        iam.ManagedPolicy.fromAwsManagedPolicyName('service-role/AmazonAPIGatewayPushToCloudWatchLogs')
+      ]
+    });
+
     // Create API Gateway with WAF and throttling
     const api = new apigateway.RestApi(this, 'ArtPlatformApi', {
       restApiName: 'Art Platform API',
@@ -69,6 +77,12 @@ export class ApiStack extends cdk.Stack {
         throttlingBurstLimit: 20, // Concurrent requests
         loggingLevel: apigateway.MethodLoggingLevel.INFO,
         metricsEnabled: true,
+        accessLogDestination: new apigateway.LogGroupLogDestination(
+          new logs.LogGroup(this, 'ApiGatewayAccessLogs', {
+            retention: logs.RetentionDays.ONE_WEEK
+          })
+        ),
+        accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields()
       },
     });
 

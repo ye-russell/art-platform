@@ -76,25 +76,68 @@ This script will:
    aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
    ```
 
-## Local Development
+## Development Workflow
 
-To run the application locally with AWS services:
+### Local Development
 
-1. **Get AWS configuration**:
+1. **Run locally with mock services**:
    ```bash
-   # On Windows
-   get-aws-config.bat
-   
-   # On macOS/Linux
-   chmod +x get-aws-config.sh
-   ./get-aws-config.sh
+   cd my-angular-app
+   npm run start
    ```
 
-2. **Start the Angular app**:
+2. **Run locally with real AWS services**:
    ```bash
+   # Get AWS config first
+   ./get-aws-config.sh
+   
+   # Start Angular with AWS config
    cd my-angular-app
    npm run start:local-aws
    ```
+
+3. **Test API locally**:
+   ```bash
+   node test-local-api.js
+   ```
+
+### Making Changes
+
+#### Frontend Changes
+
+1. Make changes to Angular code
+2. Test locally
+3. Deploy changes:
+   ```bash
+   cd my-angular-app
+   npm run build:prod
+   aws s3 sync dist/my-angular-app/browser s3://artplatformstorage-frontendbucketefe2e19c-p7qqwtcbrqkq --delete --acl public-read
+   ```
+
+#### Backend Changes
+
+1. Modify Lambda code in `server-lambda/`
+2. Deploy API changes:
+   ```bash
+   cd infrastructure
+   cdk deploy ArtPlatformApi
+   ```
+
+#### Infrastructure Changes
+
+1. Modify CDK code in `infrastructure/lib/`
+2. Deploy infrastructure changes:
+   ```bash
+   cd infrastructure
+   npm run build
+   cdk deploy --all
+   ```
+
+### Debugging
+
+- Check CloudWatch logs for Lambda errors
+- Use API Gateway test console
+- Monitor DynamoDB tables through AWS Console
 
 ## Project Structure
 

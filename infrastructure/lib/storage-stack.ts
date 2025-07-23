@@ -88,6 +88,13 @@ export class StorageStack extends cdk.Stack {
       description: 'The domain name of the Distribution',
       exportName: 'CloudFrontDomainName',
     });
+    
+    // Output the CloudFront distribution ID
+    new cdk.CfnOutput(this, 'DistributionId', {
+      value: this.distribution.distributionId,
+      description: 'The ID of the CloudFront distribution',
+      exportName: 'CloudFrontDistributionId',
+    });
 
     // Output the frontend bucket name
     new cdk.CfnOutput(this, 'FrontendBucketName', {

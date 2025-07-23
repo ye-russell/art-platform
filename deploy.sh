@@ -34,7 +34,13 @@ npm install
 npm run build:prod
 cd ..
 
-# Step 3: Deploy infrastructure with CDK
+# Step 3: Install dependencies for Lambda resources
+echo -e "${GREEN}Installing Lambda resources dependencies...${NC}"
+cd infrastructure/resources
+npm install
+cd ../..
+
+# Step 4: Deploy infrastructure with CDK
 echo -e "${GREEN}Deploying AWS infrastructure with CDK...${NC}"
 cd infrastructure
 npm install
@@ -43,9 +49,13 @@ npm run bootstrap
 npm run deploy
 cd ..
 
-# Step 4: Get the frontend bucket name from CloudFormation outputs
+# Step 5: Check if all required AWS resources exist
+echo -e "${GREEN}Checking AWS resources...${NC}"
+node check-aws-resources.js
+
+# Step 6: Get the frontend bucket name from CloudFormation outputs
 echo -e "${GREEN}Getting frontend bucket name...${NC}"
-FRONTEND_BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
+FRONTEND_BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
 
 if [ -z "$FRONTEND_BUCKET_NAME" ]; then
     echo -e "${RED}Failed to get frontend bucket name. Please check if the stack was deployed correctly.${NC}"
@@ -54,28 +64,17 @@ fi
 
 echo -e "${GREEN}Frontend bucket name: ${FRONTEND_BUCKET_NAME}${NC}"
 
-# Step 5: Update the deploy script in package.json with the actual bucket name
-echo -e "${GREEN}Updating deploy script in package.json...${NC}"
-sed -i "s/FRONTEND_BUCKET_NAME/$FRONTEND_BUCKET_NAME/g" my-angular-app/package.json
+# Step 7: Generate config file
+echo -e "${GREEN}Generating config file...${NC}"
+node generate-config.js
 
-# Step 6: Deploy Angular app to S3 (this is handled by the HostingStack, but we'll do it again to be sure)
+# Step 8: Deploy Angular app to S3
 echo -e "${GREEN}Deploying Angular app to S3...${NC}"
-cd my-angular-app
-npm run deploy
-cd ..
+aws s3 sync my-angular-app/dist/my-angular-app/browser s3://$FRONTEND_BUCKET_NAME --delete
 
-# Step 7: Invalidate CloudFront cache
+# Step 9: Get the CloudFront distribution ID
 echo -e "${GREEN}Getting CloudFront distribution ID...${NC}"
-# Try to get distribution ID directly, or find it using the domain name
-DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue" --output text)
-
-# If not found, try to get it from the distribution domain name
-if [ -z "$DISTRIBUTION_ID" ] || [ "$DISTRIBUTION_ID" == "None" ]; then
-    DOMAIN_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDomainName'].OutputValue" --output text)
-    if [ -n "$DOMAIN_NAME" ]; then
-        DISTRIBUTION_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?DomainName=='$DOMAIN_NAME'].Id" --output text)
-    fi
-fi
+DISTRIBUTION_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
 
 if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "None" ]; then
     echo -e "${GREEN}Invalidating CloudFront cache for distribution: $DISTRIBUTION_ID...${NC}"
@@ -84,7 +83,7 @@ else
     echo -e "${YELLOW}CloudFront distribution ID not found. Skipping cache invalidation.${NC}"
 fi
 
-# Step 8: Get the website URL
+# Step 10: Get the website URL
 WEBSITE_URL=$(aws cloudformation describe-stacks --stack-name ArtPlatformHosting --query "Stacks[0].Outputs[?ExportName=='WebsiteURL'].OutputValue" --output text)
 
 echo -e "${GREEN}Deployment completed successfully!${NC}"

@@ -48,12 +48,12 @@ export class AuthStack extends cdk.Stack {
         scopes: [cognito.OAuthScope.EMAIL, cognito.OAuthScope.OPENID, cognito.OAuthScope.PROFILE],
         callbackUrls: [
           "http://localhost:4200/callback",
-          // We'll use a CloudFormation reference to get the actual domain
-          `https://${cdk.Fn.importValue('CloudFrontDomainName')}/callback`,
+          // We'll add the production URL after deployment
+          "https://example.com/callback",
         ],
         logoutUrls: [
           "http://localhost:4200/",
-          `https://${cdk.Fn.importValue('CloudFrontDomainName')}/`,
+          "https://example.com/",
         ],
       },
       supportedIdentityProviders: [
@@ -87,6 +87,13 @@ export class AuthStack extends cdk.Stack {
       value: `https://${domain.domainName}.auth.${this.region}.amazoncognito.com`,
       description: "The full URL of the Cognito User Pool domain",
       exportName: "UserPoolDomainUrl"
+    });
+    
+    // Export user pool ARN
+    new cdk.CfnOutput(this, "UserPoolArn", {
+      value: this.userPool.userPoolArn,
+      description: "The ARN of the Cognito User Pool",
+      exportName: "UserPoolArn"
     });
   }
 }

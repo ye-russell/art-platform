@@ -1,147 +1,185 @@
-const AWS = require('aws-sdk');
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
+const { handler } = require('./server-lambda/index');
 const { v4: uuidv4 } = require('uuid');
 
-// Initialize Express app
-const app = express();
-app.use(cors());
-app.use(bodyParser.json());
+// Mock environment variables
+process.env.ARTISTS_TABLE = 'MockArtistsTable';
+process.env.ARTWORKS_TABLE = 'MockArtworksTable';
+process.env.ASSETS_BUCKET = 'mock-assets-bucket';
+process.env.USER_POOL_ID = 'mock-user-pool-id';
 
-// Get AWS configuration from environment variables or AWS CLI profile
-const region = process.env.AWS_REGION || 'us-east-1';
-AWS.config.update({ region });
+// Mock data storage
+const mockItems = {
+  artists: [],
+  artworks: []
+};
 
-// Initialize AWS services
-const dynamodb = new AWS.DynamoDB.DocumentClient();
-const s3 = new AWS.S3();
-const cognito = new AWS.CognitoIdentityServiceProvider();
+// Mock AWS SDK modules
+jest.mock('@aws-sdk/client-dynamodb', () => ({}), { virtual: true });
+jest.mock('@aws-sdk/client-s3', () => ({}), { virtual: true });
+jest.mock('@aws-sdk/client-cognito-identity-provider', () => ({}), { virtual: true });
+jest.mock('@aws-sdk/s3-request-presigner', () => ({
+  getSignedUrl: jest.fn().mockResolvedValue('https://mock-presigned-url.com')
+}), { virtual: true });
 
-// Get table names from CloudFormation outputs
-async function getTableNames() {
-  const cloudformation = new AWS.CloudFormation();
-  
-  try {
-    const artistsTable = await cloudformation.describeStacks({ StackName: 'ArtPlatformDatabase' }).promise()
-      .then(data => data.Stacks[0].Outputs.find(output => output.ExportName === 'ArtistsTableName').OutputValue);
-    
-    const artworksTable = await cloudformation.describeStacks({ StackName: 'ArtPlatformDatabase' }).promise()
-      .then(data => data.Stacks[0].Outputs.find(output => output.ExportName === 'ArtworksTableName').OutputValue);
-    
-    const assetsBucket = await cloudformation.describeStacks({ StackName: 'ArtPlatformStorage' }).promise()
-      .then(data => data.Stacks[0].Outputs.find(output => output.ExportName === 'AssetsBucketName').OutputValue);
-    
-    const userPoolId = await cloudformation.describeStacks({ StackName: 'ArtPlatformAuth' }).promise()
-      .then(data => data.Stacks[0].Outputs.find(output => output.ExportName === 'UserPoolId').OutputValue);
-    
-    return { artistsTable, artworksTable, assetsBucket, userPoolId };
-  } catch (error) {
-    console.error('Error getting table names:', error);
-    throw error;
-  }
-}
-
-// Start the server
-async function startServer() {
-  try {
-    const { artistsTable, artworksTable, assetsBucket, userPoolId } = await getTableNames();
-    console.log(`Using tables: Artists=${artistsTable}, Artworks=${artworksTable}, Assets=${assetsBucket}`);
-    
-    // Artists endpoints
-    app.get('/api/artists', async (req, res) => {
-      try {
-        const params = {
-          TableName: artistsTable
-        };
-        
-        const result = await dynamodb.scan(params).promise();
-        res.json(result.Items);
-      } catch (error) {
-        console.error('Error getting artists:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
-      }
-    });
-    
-    app.get('/api/artists/:artistId', async (req, res) => {
-      try {
-        const params = {
-          TableName: artistsTable,
-          Key: { artistId: req.params.artistId }
-        };
-        
-        const result = await dynamodb.get(params).promise();
-        if (!result.Item) {
-          return res.status(404).json({ message: 'Artist not found' });
-        }
-        
-        res.json(result.Item);
-      } catch (error) {
-        console.error('Error getting artist:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
-      }
-    });
-    
-    // Artworks endpoints
-    app.get('/api/artworks', async (req, res) => {
-      try {
-        let params;
-        
-        if (req.query.artistId) {
-          params = {
-            TableName: artworksTable,
-            IndexName: 'ArtistArtworks',
-            KeyConditionExpression: 'artistId = :artistId',
-            ExpressionAttributeValues: {
-              ':artistId': req.query.artistId
+// Mock DynamoDB Document Client
+jest.mock('@aws-sdk/lib-dynamodb', () => {
+  return {
+    DynamoDBDocumentClient: {
+      from: jest.fn().mockReturnValue({
+        send: jest.fn().mockImplementation(async (command) => {
+          // Mock GetCommand
+          if (command.constructor.name === 'GetCommand') {
+            const tableName = command.input.TableName;
+            const key = command.input.Key;
+            
+            if (tableName === process.env.ARTISTS_TABLE) {
+              const artist = mockItems.artists.find(a => a.artistId === key.artistId);
+              return { Item: artist };
+            } else if (tableName === process.env.ARTWORKS_TABLE) {
+              const artwork = mockItems.artworks.find(a => a.artworkId === key.artworkId);
+              return { Item: artwork };
             }
-          };
-          
-          const result = await dynamodb.query(params).promise();
-          res.json(result.Items);
-        } else {
-          params = {
-            TableName: artworksTable
-          };
-          
-          const result = await dynamodb.scan(params).promise();
-          res.json(result.Items);
+          } 
+          // Mock PutCommand
+          else if (command.constructor.name === 'PutCommand') {
+            const tableName = command.input.TableName;
+            const item = command.input.Item;
+            
+            if (tableName === process.env.ARTISTS_TABLE) {
+              mockItems.artists.push(item);
+            } else if (tableName === process.env.ARTWORKS_TABLE) {
+              mockItems.artworks.push(item);
+            }
+            return {};
+          } 
+          // Mock ScanCommand
+          else if (command.constructor.name === 'ScanCommand') {
+            const tableName = command.input.TableName;
+            
+            if (tableName === process.env.ARTISTS_TABLE) {
+              return { Items: mockItems.artists };
+            } else if (tableName === process.env.ARTWORKS_TABLE) {
+              return { Items: mockItems.artworks };
+            }
+            return { Items: [] };
+          }
+          // Mock QueryCommand
+          else if (command.constructor.name === 'QueryCommand') {
+            return { Items: [] };
+          }
+          // Mock other commands
+          return {};
+        })
+      })
+    }
+  };
+});
+
+// Test function
+async function runTests() {
+  console.log('Starting API tests...');
+  
+  // Test 1: Get all artists (empty)
+  console.log('\nTest 1: Get all artists');
+  const getAllArtistsEvent = {
+    path: '/api/artists',
+    httpMethod: 'GET',
+    pathParameters: {},
+    queryStringParameters: {}
+  };
+  
+  const getAllArtistsResult = await handler(getAllArtistsEvent);
+  console.log('Result:', getAllArtistsResult);
+  
+  // Test 2: Create an artist
+  console.log('\nTest 2: Create an artist');
+  const createArtistEvent = {
+    path: '/api/artists',
+    httpMethod: 'POST',
+    pathParameters: {},
+    queryStringParameters: {},
+    body: JSON.stringify({
+      name: 'Test Artist',
+      bio: 'This is a test artist',
+      email: 'test@example.com'
+    }),
+    requestContext: {
+      authorizer: {
+        claims: {
+          sub: 'test-user-id',
+          email: 'test@example.com'
         }
-      } catch (error) {
-        console.error('Error getting artworks:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
       }
-    });
-    
-    app.get('/api/artworks/:artworkId', async (req, res) => {
-      try {
-        const params = {
-          TableName: artworksTable,
-          Key: { artworkId: req.params.artworkId }
-        };
-        
-        const result = await dynamodb.get(params).promise();
-        if (!result.Item) {
-          return res.status(404).json({ message: 'Artwork not found' });
+    }
+  };
+  
+  const createArtistResult = await handler(createArtistEvent);
+  console.log('Result:', createArtistResult);
+  const artistId = JSON.parse(createArtistResult.body).artistId;
+  
+  // Test 3: Get the created artist
+  console.log('\nTest 3: Get the created artist');
+  const getArtistEvent = {
+    path: `/api/artists/${artistId}`,
+    httpMethod: 'GET',
+    pathParameters: { artistId },
+    queryStringParameters: {}
+  };
+  
+  const getArtistResult = await handler(getArtistEvent);
+  console.log('Result:', getArtistResult);
+  
+  // Test 4: Create an artwork
+  console.log('\nTest 4: Create an artwork');
+  const createArtworkEvent = {
+    path: '/api/artworks',
+    httpMethod: 'POST',
+    pathParameters: {},
+    queryStringParameters: {},
+    body: JSON.stringify({
+      artistId,
+      title: 'Test Artwork',
+      description: 'This is a test artwork',
+      imageUrl: 'https://example.com/image.jpg',
+      price: 100
+    }),
+    requestContext: {
+      authorizer: {
+        claims: {
+          sub: 'test-user-id',
+          email: 'test@example.com'
         }
-        
-        res.json(result.Item);
-      } catch (error) {
-        console.error('Error getting artwork:', error);
-        res.status(500).json({ message: 'Internal Server Error' });
       }
-    });
-    
-    // Start the server
-    const port = process.env.PORT || 3000;
-    app.listen(port, () => {
-      console.log(`Local API server running at http://localhost:${port}`);
-      console.log('This server connects to your actual AWS resources for testing');
-      console.log('Press Ctrl+C to stop');
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error);
-  }
+    }
+  };
+  
+  const createArtworkResult = await handler(createArtworkEvent);
+  console.log('Result:', createArtworkResult);
+  const artworkId = JSON.parse(createArtworkResult.body).artworkId;
+  
+  // Test 5: Get all artworks
+  console.log('\nTest 5: Get all artworks');
+  const getAllArtworksEvent = {
+    path: '/api/artworks',
+    httpMethod: 'GET',
+    pathParameters: {},
+    queryStringParameters: {}
+  };
+  
+  const getAllArtworksResult = await handler(getAllArtworksEvent);
+  console.log('Result:', getAllArtworksResult);
+  
+  console.log('\nAll tests completed!');
 }
 
-startServer();
+// Setup global Jest mock
+global.jest = {
+  fn: () => ({
+    mockReturnValue: () => ({}),
+    mockImplementation: (fn) => fn
+  }),
+  mock: () => {}
+};
+
+// Run the tests
+runTests().catch(console.error);

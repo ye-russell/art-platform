@@ -17,13 +17,24 @@ export class HostingStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props: HostingStackProps) {
     super(scope, id, props);
 
-    // Deploy Angular app to S3
-    new s3deploy.BucketDeployment(this, 'DeployAngularApp', {
-      sources: [s3deploy.Source.asset(path.join(__dirname, '../../my-angular-app/dist/my-angular-app/browser'))],
-      destinationBucket: props.frontendBucket,
-      distribution: props.distribution,
-      distributionPaths: ['/*'],
-    });
+    // Deploy Angular app to S3 if the build directory exists
+    try {
+      const fs = require('fs');
+      const buildPath = path.join(__dirname, '../../my-angular-app/dist/my-angular-app/browser');
+      
+      if (fs.existsSync(buildPath)) {
+        new s3deploy.BucketDeployment(this, 'DeployAngularApp', {
+          sources: [s3deploy.Source.asset(buildPath)],
+          destinationBucket: props.frontendBucket,
+          distribution: props.distribution,
+          distributionPaths: ['/*'],
+        });
+      } else {
+        console.log('Angular app build directory not found. Skipping deployment.');
+      }
+    } catch (error) {
+      console.log('Error checking Angular app build directory:', error);
+    }
 
     // Create a custom resource to generate and upload the config.json file
     const configGeneratorRole = new iam.Role(this, 'ConfigGeneratorRole', {
@@ -87,6 +98,40 @@ export class HostingStack extends cdk.Stack {
       // Ensure invalidation happens after config is generated
       invalidation.node.addDependency(configGenerator);
     }
+    
+    // Create a Lambda function to update Cognito URLs
+    const updateCognitoUrlsFunction = new lambda.Function(this, 'UpdateCognitoUrlsFunction', {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: 'update-cognito-urls.handler',
+      code: lambda.Code.fromAsset(path.join(__dirname, '../resources')),
+      timeout: cdk.Duration.seconds(30),
+    });
+
+    // Grant permissions to update Cognito user pool client
+    updateCognitoUrlsFunction.addToRolePolicy(new iam.PolicyStatement({
+      actions: [
+        'cognito-idp:DescribeUserPoolClient',
+        'cognito-idp:UpdateUserPoolClient'
+      ],
+      resources: ['*'] // You can restrict this to the specific user pool ARN if available
+    }));
+
+    // Create a custom resource provider
+    const provider = new cr.Provider(this, 'UpdateCognitoUrlsProvider', {
+      onEventHandler: updateCognitoUrlsFunction,
+    });
+
+    // Create the custom resource
+    new cdk.CustomResource(this, 'UpdateCognitoUrls', {
+      serviceToken: provider.serviceToken,
+      properties: {
+        UserPoolId: cdk.Fn.importValue('UserPoolId'),
+        ClientId: cdk.Fn.importValue('UserPoolClientId'),
+        DistributionDomainName: props.distribution.distributionDomainName,
+        // Add a timestamp to force update on each deployment
+        Timestamp: Date.now().toString()
+      }
+    });
 
     // Output the CloudFront URL
     new cdk.CfnOutput(this, 'WebsiteURL', {

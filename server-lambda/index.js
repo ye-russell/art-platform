@@ -1,10 +1,15 @@
-const AWS = require('aws-sdk');
+const { DynamoDBClient } = require('@aws-sdk/client-dynamodb');
+const { DynamoDBDocumentClient, GetCommand, PutCommand, UpdateCommand, DeleteCommand, ScanCommand, QueryCommand } = require('@aws-sdk/lib-dynamodb');
+const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { CognitoIdentityProviderClient, AdminGetUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const { v4: uuidv4 } = require('uuid');
 
-// Initialize AWS services
-const dynamodb = new AWS.DynamoDB.DocumentClient();
-const s3 = new AWS.S3();
-const cognito = new AWS.CognitoIdentityServiceProvider();
+// Initialize AWS clients
+const dynamoClient = new DynamoDBClient();
+const dynamodb = DynamoDBDocumentClient.from(dynamoClient);
+const s3Client = new S3Client();
+const cognitoClient = new CognitoIdentityProviderClient();
 
 // Environment variables from CDK
 const ARTISTS_TABLE = process.env.ARTISTS_TABLE;
@@ -69,7 +74,7 @@ async function handleUserRoute(httpMethod, userId, userEmail) {
       Username: userId
     };
     
-    const cognitoUser = await cognito.adminGetUser(params).promise();
+    const cognitoUser = await cognitoClient.send(new AdminGetUserCommand(params));
     
     // Check if user is an artist
     const artistParams = {
@@ -83,7 +88,7 @@ async function handleUserRoute(httpMethod, userId, userEmail) {
     
     let artistProfile = null;
     try {
-      const artistResult = await dynamodb.query(artistParams).promise();
+      const artistResult = await dynamodb.send(new QueryCommand(artistParams));
       if (artistResult.Items && artistResult.Items.length > 0) {
         artistProfile = artistResult.Items[0];
       }
@@ -116,7 +121,7 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
           Key: { artistId }
         };
         
-        const result = await dynamodb.get(params).promise();
+        const result = await dynamodb.send(new GetCommand(params));
         if (!result.Item) {
           return buildResponse(404, { message: 'Artist not found' });
         }
@@ -128,7 +133,7 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
           TableName: ARTISTS_TABLE
         };
         
-        const result = await dynamodb.scan(params).promise();
+        const result = await dynamodb.send(new ScanCommand(params));
         return buildResponse(200, result.Items);
       }
       
@@ -148,10 +153,10 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
         updatedAt: new Date().toISOString()
       };
       
-      await dynamodb.put({
+      await dynamodb.send(new PutCommand({
         TableName: ARTISTS_TABLE,
         Item: newArtist
-      }).promise();
+      }));
       
       return buildResponse(201, newArtist);
       
@@ -162,10 +167,12 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
       
       // Verify ownership
       if (userId) {
-        const artistRecord = await dynamodb.get({
+        const getParams = {
           TableName: ARTISTS_TABLE,
           Key: { artistId }
-        }).promise();
+        };
+        
+        const artistRecord = await dynamodb.send(new GetCommand(getParams));
         
         if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
           return buildResponse(403, { message: 'Not authorized to update this artist' });
@@ -190,7 +197,7 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
         ReturnValues: 'ALL_NEW'
       };
       
-      const updateResult = await dynamodb.update(updateParams).promise();
+      const updateResult = await dynamodb.send(new UpdateCommand(updateParams));
       return buildResponse(200, updateResult.Attributes);
       
     case 'DELETE':
@@ -200,10 +207,12 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
       
       // Verify ownership
       if (userId) {
-        const artistRecord = await dynamodb.get({
+        const getParams = {
           TableName: ARTISTS_TABLE,
           Key: { artistId }
-        }).promise();
+        };
+        
+        const artistRecord = await dynamodb.send(new GetCommand(getParams));
         
         if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
           return buildResponse(403, { message: 'Not authorized to delete this artist' });
@@ -213,10 +222,10 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
       }
       
       // Delete an artist
-      await dynamodb.delete({
+      await dynamodb.send(new DeleteCommand({
         TableName: ARTISTS_TABLE,
         Key: { artistId }
-      }).promise();
+      }));
       
       return buildResponse(204, {});
       
@@ -238,7 +247,7 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
           Key: { artworkId }
         };
         
-        const result = await dynamodb.get(params).promise();
+        const result = await dynamodb.send(new GetCommand(params));
         if (!result.Item) {
           return buildResponse(404, { message: 'Artwork not found' });
         }
@@ -260,10 +269,10 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
             }
           };
           
-          const result = await dynamodb.query(params).promise();
+          const result = await dynamodb.send(new QueryCommand(params));
           return buildResponse(200, result.Items);
         } else {
-          const result = await dynamodb.scan(params).promise();
+          const result = await dynamodb.send(new ScanCommand(params));
           return buildResponse(200, result.Items);
         }
       }
@@ -276,10 +285,12 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       
       // Verify the user is the artist
       if (body.artistId) {
-        const artistRecord = await dynamodb.get({
+        const getParams = {
           TableName: ARTISTS_TABLE,
           Key: { artistId: body.artistId }
-        }).promise();
+        };
+        
+        const artistRecord = await dynamodb.send(new GetCommand(getParams));
         
         if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
           return buildResponse(403, { message: 'Not authorized to create artwork for this artist' });
@@ -299,10 +310,10 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
         updatedAt: new Date().toISOString()
       };
       
-      await dynamodb.put({
+      await dynamodb.send(new PutCommand({
         TableName: ARTWORKS_TABLE,
         Item: newArtwork
-      }).promise();
+      }));
       
       return buildResponse(201, newArtwork);
       
@@ -313,20 +324,24 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       
       // Verify ownership
       if (userId) {
-        const artworkRecord = await dynamodb.get({
+        const getArtworkParams = {
           TableName: ARTWORKS_TABLE,
           Key: { artworkId }
-        }).promise();
+        };
+        
+        const artworkRecord = await dynamodb.send(new GetCommand(getArtworkParams));
         
         if (!artworkRecord.Item) {
           return buildResponse(404, { message: 'Artwork not found' });
         }
         
         // Get the artist to verify ownership
-        const artistRecord = await dynamodb.get({
+        const getArtistParams = {
           TableName: ARTISTS_TABLE,
           Key: { artistId: artworkRecord.Item.artistId }
-        }).promise();
+        };
+        
+        const artistRecord = await dynamodb.send(new GetCommand(getArtistParams));
         
         if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
           return buildResponse(403, { message: 'Not authorized to update this artwork' });
@@ -349,7 +364,7 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
         ReturnValues: 'ALL_NEW'
       };
       
-      const updateResult = await dynamodb.update(updateParams).promise();
+      const updateResult = await dynamodb.send(new UpdateCommand(updateParams));
       return buildResponse(200, updateResult.Attributes);
       
     case 'DELETE':
@@ -359,20 +374,24 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       
       // Verify ownership
       if (userId) {
-        const artworkRecord = await dynamodb.get({
+        const getArtworkParams = {
           TableName: ARTWORKS_TABLE,
           Key: { artworkId }
-        }).promise();
+        };
+        
+        const artworkRecord = await dynamodb.send(new GetCommand(getArtworkParams));
         
         if (!artworkRecord.Item) {
           return buildResponse(404, { message: 'Artwork not found' });
         }
         
         // Get the artist to verify ownership
-        const artistRecord = await dynamodb.get({
+        const getArtistParams = {
           TableName: ARTISTS_TABLE,
           Key: { artistId: artworkRecord.Item.artistId }
-        }).promise();
+        };
+        
+        const artistRecord = await dynamodb.send(new GetCommand(getArtistParams));
         
         if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
           return buildResponse(403, { message: 'Not authorized to delete this artwork' });
@@ -382,10 +401,10 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       }
       
       // Delete an artwork
-      await dynamodb.delete({
+      await dynamodb.send(new DeleteCommand({
         TableName: ARTWORKS_TABLE,
         Key: { artworkId }
-      }).promise();
+      }));
       
       return buildResponse(204, {});
       
@@ -415,14 +434,14 @@ async function handleUploadsRoute(httpMethod, body, userId) {
   // Use userId in the file path for better organization
   const fileKey = `uploads/${userId}/${uuidv4()}-${fileName}`;
   
-  const params = {
+  const command = new PutObjectCommand({
     Bucket: ASSETS_BUCKET,
     Key: fileKey,
-    ContentType: fileType,
-    Expires: 300 // URL expires in 5 minutes
-  };
+    ContentType: fileType
+  });
   
-  const uploadUrl = await s3.getSignedUrlPromise('putObject', params);
+  // Generate presigned URL with SDK v3
+  const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 300 });
   
   return buildResponse(200, {
     uploadUrl,

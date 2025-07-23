@@ -18,7 +18,7 @@ This application uses the following AWS services:
 Before deploying the application, make sure you have:
 
 1. **AWS CLI** installed and configured with appropriate credentials
-2. **Node.js** and **npm** installed
+2. **Node.js** (v18 or later) and **npm** installed
 3. **AWS CDK** installed globally (`npm install -g aws-cdk`)
 
 ## Deployment
@@ -40,8 +40,9 @@ This script will:
 1. Install dependencies for the Lambda function
 2. Build the Angular application for production
 3. Deploy all AWS infrastructure using CDK
-4. Upload the Angular app to the S3 bucket
-5. Invalidate the CloudFront cache
+4. Generate the configuration file with AWS resource information
+5. Upload the Angular app to the S3 bucket
+6. Invalidate the CloudFront cache
 
 ### Option 2: Manual Deployment
 
@@ -60,17 +61,21 @@ This script will:
    npm install
    npm run build:prod
    
+   # Generate config file
+   cd ..
+   node generate-config.js
+   
    # Get the S3 bucket name from CloudFormation outputs
    BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
    
    # Upload to S3
-   aws s3 sync dist/my-angular-app/browser s3://$BUCKET_NAME --delete
+   aws s3 sync my-angular-app/dist/my-angular-app/browser s3://$BUCKET_NAME --delete
    ```
 
-3. **Invalidate CloudFront cache** (optional):
+3. **Invalidate CloudFront cache**:
    ```bash
    # Get the CloudFront distribution ID
-   DIST_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[?Aliases.Items!=null] | [?contains(Aliases.Items, '$BUCKET_NAME')] | [0].Id" --output text)
+   DIST_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
    
    # Create invalidation
    aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
@@ -89,7 +94,7 @@ This script will:
 2. **Run locally with real AWS services**:
    ```bash
    # Get AWS config first
-   ./get-aws-config.sh
+   node generate-local-config.js
    
    # Start Angular with AWS config
    cd my-angular-app
@@ -98,7 +103,9 @@ This script will:
 
 3. **Test API locally**:
    ```bash
-   node test-local-api.js
+   cd server-lambda
+   npm install
+   node ../test-local-api.js
    ```
 
 ### Making Changes
@@ -111,7 +118,16 @@ This script will:
    ```bash
    cd my-angular-app
    npm run build:prod
-   aws s3 sync dist/my-angular-app/browser s3://artplatformstorage-frontendbucketefe2e19c-p7qqwtcbrqkq --delete --acl public-read
+   
+   # Get the S3 bucket name
+   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
+   
+   # Upload to S3
+   aws s3 sync dist/my-angular-app/browser s3://$BUCKET_NAME --delete
+   
+   # Invalidate CloudFront cache
+   DIST_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
+   aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
    ```
 
 #### Backend Changes
@@ -120,6 +136,7 @@ This script will:
 2. Deploy API changes:
    ```bash
    cd infrastructure
+   npm run build
    cdk deploy ArtPlatformApi
    ```
 
@@ -156,6 +173,26 @@ This script will:
 
 - **Angular app**: `cd my-angular-app && npm test`
 - **Infrastructure**: `cd infrastructure && npm test`
+
+## Security Best Practices
+
+This project implements several security best practices:
+
+1. **S3 Bucket Security**:
+   - Frontend bucket blocks public access and is only accessible through CloudFront
+   - Assets bucket uses server-side encryption
+
+2. **API Security**:
+   - API Gateway uses Cognito authorizers for protected endpoints
+   - CORS is properly configured
+
+3. **Authentication**:
+   - Cognito user pools for secure authentication
+   - JWT token validation
+
+4. **Frontend Security**:
+   - CloudFront security headers
+   - HTTPS enforcement
 
 ## Cleanup
 

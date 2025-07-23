@@ -16,7 +16,7 @@ const env = {
 };
 
 // Create stacks
-const storageStack = new StorageStack(app, "ArtPlatformStorage", { env });
+const storageStack = new StorageStack(app, "ArtPlatformStorageNew", { env });
 const databaseStack = new DatabaseStack(app, "ArtPlatformDatabase", { env });
 const authStack = new AuthStack(app, "ArtPlatformAuth", { env });
 

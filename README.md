@@ -66,7 +66,7 @@ This script will:
    node generate-config.js
    
    # Get the S3 bucket name from CloudFormation outputs
-   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
+   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
    
    # Upload to S3
    aws s3 sync my-angular-app/dist/my-angular-app/browser s3://$BUCKET_NAME --delete
@@ -75,7 +75,7 @@ This script will:
 3. **Invalidate CloudFront cache**:
    ```bash
    # Get the CloudFront distribution ID
-   DIST_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
+   DIST_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
    
    # Create invalidation
    aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
@@ -120,13 +120,13 @@ This script will:
    npm run build:prod
    
    # Get the S3 bucket name
-   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
+   BUCKET_NAME=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query "Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue" --output text)
    
    # Upload to S3
    aws s3 sync dist/my-angular-app/browser s3://$BUCKET_NAME --delete
    
    # Invalidate CloudFront cache
-   DIST_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
+   DIST_ID=$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query "Stacks[0].Outputs[?ExportName=='CloudFrontDistributionId'].OutputValue" --output text)
    aws cloudfront create-invalidation --distribution-id $DIST_ID --paths "/*"
    ```
 

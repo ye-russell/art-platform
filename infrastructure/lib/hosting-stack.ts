@@ -58,9 +58,10 @@ export class HostingStack extends cdk.Stack {
           Body: cdk.Stack.of(this).toJsonString({
             apiEndpoint: props.apiEndpoint,
             region: this.region,
-            userPoolId: cdk.Fn.importValue('UserPoolId'),
-            userPoolWebClientId: cdk.Fn.importValue('UserPoolClientId'),
-            oauthDomain: cdk.Fn.importValue('UserPoolDomainUrl')
+            // Update these import values to match your auth stack exports
+            userPoolId: cdk.Fn.importValue('ArtPlatformAuth-UserPoolId'), // Updated
+            userPoolWebClientId: cdk.Fn.importValue('ArtPlatformAuth-UserPoolClientId'), // Updated
+            oauthDomain: cdk.Fn.importValue('ArtPlatformAuth-UserPoolDomainUrl') // Updated
           }),
           ContentType: 'application/json'
         },
@@ -125,19 +126,20 @@ export class HostingStack extends cdk.Stack {
     new cdk.CustomResource(this, 'UpdateCognitoUrls', {
       serviceToken: provider.serviceToken,
       properties: {
-        UserPoolId: cdk.Fn.importValue('UserPoolId'),
-        ClientId: cdk.Fn.importValue('UserPoolClientId'),
+        // Update these import values to match your auth stack exports
+        UserPoolId: cdk.Fn.importValue('ArtPlatformAuth-UserPoolId'), // Updated
+        ClientId: cdk.Fn.importValue('ArtPlatformAuth-UserPoolClientId'), // Updated
         DistributionDomainName: props.distribution.distributionDomainName,
         // Add a timestamp to force update on each deployment
         Timestamp: Date.now().toString()
       }
     });
 
-    // Output the CloudFront URL
+    // Output the CloudFront URL - Update export name to avoid conflicts
     new cdk.CfnOutput(this, 'WebsiteURL', {
       value: `https://${props.distribution.distributionDomainName}`,
       description: 'The URL of the deployed website',
-      exportName: 'WebsiteURL'
+      exportName: 'ArtPlatformHosting-WebsiteURL' // Updated to avoid conflicts
     });
   }
 }

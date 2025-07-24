@@ -12,14 +12,16 @@ export class StorageStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // Frontend hosting bucket
+    // Frontend hosting bucket - REMOVE website configuration
     this.frontendBucket = new s3.Bucket(this, 'FrontendBucket', {
-      websiteIndexDocument: 'index.html',
-      websiteErrorDocument: 'index.html', // Use index.html for SPA routing
-      publicReadAccess: false, // We'll use CloudFront for access
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL, // Block direct public access
+      // Remove these lines:
+      // websiteIndexDocument: 'index.html',
+      // websiteErrorDocument: 'index.html',
+      
+      publicReadAccess: false,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       removalPolicy: cdk.RemovalPolicy.DESTROY,
-      autoDeleteObjects: true, // Automatically delete objects when bucket is destroyed
+      autoDeleteObjects: true,
       cors: [{
         allowedMethods: [s3.HttpMethods.GET],
         allowedOrigins: ['*'],
@@ -29,13 +31,10 @@ export class StorageStack extends cdk.Stack {
 
     // Create Origin Access Identity for CloudFront
     const originAccessIdentity = new cloudfront.OriginAccessIdentity(this, 'OAI', {
-      comment: 'Allow CloudFront to access the frontend bucket',
+      comment: 'Allow CloudFront to access both S3 buckets',
     });
 
-    // Grant read access to CloudFront
-    this.frontendBucket.grantRead(originAccessIdentity);
-
-    // Assets bucket for artwork images (private by default)
+    // Assets bucket for artwork images (ADD THIS - it was missing!)
     this.assetsBucket = new s3.Bucket(this, 'AssetsBucket', {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
       cors: [{
@@ -48,25 +47,29 @@ export class StorageStack extends cdk.Stack {
       encryption: s3.BucketEncryption.S3_MANAGED,
     });
 
-    // CloudFront distribution with improved security
+    // Grant read access to CloudFront for both buckets
+    this.frontendBucket.grantRead(originAccessIdentity);
+    this.assetsBucket.grantRead(originAccessIdentity);
+
+    // CloudFront distribution - BOTH origins should use S3Origin with OAI
     this.distribution = new cloudfront.Distribution(this, 'ArtPlatformCdn', {
       defaultBehavior: {
         origin: new origins.S3Origin(this.frontendBucket, {
-          originAccessIdentity,
+          originAccessIdentity, // Use OAI instead of website endpoint
         }),
         viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
         cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         responseHeadersPolicy: cloudfront.ResponseHeadersPolicy.SECURITY_HEADERS,
       },
-      // Add additional behavior for assets bucket
       additionalBehaviors: {
         '/assets/*': {
-          origin: new origins.S3Origin(this.assetsBucket),
+          origin: new origins.S3Origin(this.assetsBucket, {
+            originAccessIdentity, // Same OAI for both
+          }),
           viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
           cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
         }
       },
-      // Handle SPA routing
       errorResponses: [
         {
           httpStatus: 404,
@@ -86,28 +89,28 @@ export class StorageStack extends cdk.Stack {
     new cdk.CfnOutput(this, 'DistributionDomainName', {
       value: this.distribution.distributionDomainName,
       description: 'The domain name of the Distribution',
-      exportName: 'CloudFrontDomainName',
+      exportName: 'ArtPlatformNew-CloudFrontDomainName', // Changed from 'CloudFrontDomainName'
     });
     
     // Output the CloudFront distribution ID
     new cdk.CfnOutput(this, 'DistributionId', {
       value: this.distribution.distributionId,
       description: 'The ID of the CloudFront distribution',
-      exportName: 'CloudFrontDistributionId',
+      exportName: 'ArtPlatformNew-CloudFrontDistributionId', // Changed from 'CloudFrontDistributionId'
     });
 
     // Output the frontend bucket name
     new cdk.CfnOutput(this, 'FrontendBucketName', {
       value: this.frontendBucket.bucketName,
       description: 'The name of the frontend S3 bucket',
-      exportName: 'FrontendBucketName',
+      exportName: 'ArtPlatformNew-FrontendBucketName', // Changed from 'FrontendBucketName'
     });
 
     // Output the assets bucket name
     new cdk.CfnOutput(this, 'AssetsBucketName', {
       value: this.assetsBucket.bucketName,
       description: 'The name of the assets S3 bucket',
-      exportName: 'AssetsBucketName',
+      exportName: 'ArtPlatformNew-AssetsBucketName', // Changed from 'AssetsBucketName'
     });
   }
 }

@@ -65,35 +65,35 @@ export class AuthStack extends cdk.Stack {
     new cdk.CfnOutput(this, "UserPoolId", {
       value: this.userPool.userPoolId,
       description: "The ID of the Cognito User Pool",
-      exportName: "UserPoolId"
+      exportName: "ArtPlatformAuth-UserPoolId"
     });
 
     // Export user pool client ID
     new cdk.CfnOutput(this, "UserPoolClientId", {
       value: this.userPoolClient.userPoolClientId,
       description: "The ID of the Cognito User Pool Client",
-      exportName: "UserPoolClientId"
+      exportName: "ArtPlatformAuth-UserPoolClientId"
     });
 
     // Export user pool domain
     new cdk.CfnOutput(this, "UserPoolDomain", {
       value: domain.domainName,
       description: "The domain name of the Cognito User Pool",
-      exportName: "UserPoolDomain"
+      exportName: "ArtPlatformAuth-UserPoolDomain" // Changed from "UserPoolDomain"
     });
     
     // Export full domain URL
     new cdk.CfnOutput(this, "UserPoolDomainUrl", {
       value: `https://${domain.domainName}.auth.${this.region}.amazoncognito.com`,
       description: "The full URL of the Cognito User Pool domain",
-      exportName: "UserPoolDomainUrl"
+      exportName: "ArtPlatformAuth-UserPoolDomainUrl"
     });
     
     // Export user pool ARN
     new cdk.CfnOutput(this, "UserPoolArn", {
       value: this.userPool.userPoolArn,
       description: "The ARN of the Cognito User Pool",
-      exportName: "UserPoolArn"
+      exportName: "ArtPlatformAuth-UserPoolArn" // Changed from "UserPoolArn"
     });
   }
 }

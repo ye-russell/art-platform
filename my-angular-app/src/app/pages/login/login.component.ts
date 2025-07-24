@@ -38,7 +38,7 @@ export class LoginComponent {
   constructor(
     private fb: FormBuilder,
     private authService: AuthService,
-    private router: Router,
+    private router: Router
   ) {
     this.loginForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
@@ -86,8 +86,9 @@ export class LoginComponent {
           }
         },
         error: (error) => {
+          console.error('Registration error:', error);
           this.isLoading = false;
-          this.errorMessage = error.message || 'Registration failed';
+          this.errorMessage = error?.message || 'Registration failed';
         },
       });
     }

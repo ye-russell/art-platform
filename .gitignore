@@ -1,0 +1,108 @@
+# ===================
+# NODE.JS / NPM
+# ===================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+
+# ===================
+# ANGULAR SPECIFIC
+# ===================
+my-angular-app/dist/
+my-angular-app/.angular/
+my-angular-app/coverage/
+my-angular-app/.nyc_output/
+
+# ===================
+# AWS / CDK
+# ===================
+infrastructure/cdk.out/
+infrastructure/node_modules/
+.aws/
+aws-exports.js
+amplify/
+.amplifyrc
+
+# ===================
+# ENVIRONMENT & CONFIG
+# ===================
+.env
+.env.local
+.env.*.local
+environment.local-aws.ts
+environment.prod.ts
+config.local.json
+local-config.json
+
+# ===================
+# SECRETS & CREDENTIALS
+# ===================
+*.pem
+*.key
+*.p12
+*.pfx
+.aws/credentials
+.aws/config
+
+# ===================
+# IDE / EDITOR
+# ===================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===================
+# OS SPECIFIC
+# ===================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===================
+# LOGS
+# ===================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===================
+# TEMPORARY FILES
+# ===================
+*.tmp
+*.temp
+.cache/
+.parcel-cache/
+
+# ===================
+# TESTING
+# ===================
+coverage/
+.nyc_output/
+test-results/
+
+# ===================
+# BUILD ARTIFACTS
+# ===================
+build/
+dist/
+out/
+.next/
+
+# ===================
+# BACKUP FILES
+# ===================
+*.bak
+*.backup
+*.old

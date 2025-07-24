@@ -9,7 +9,10 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "start:local-aws": "ng serve --configuration=local-aws",
-    "deploy": "npm run build:prod && aws s3 sync dist/my-angular-app/browser s3://$(aws cloudformation describe-stacks --stack-name ArtPlatformStorage --query \"Stacks[0].Outputs[?ExportName=='FrontendBucketName'].OutputValue\" --output text) --delete"
+    "deploy": "node deploy.js",
+    "deploy:s3": "aws s3 sync dist/my-angular-app/browser s3://$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query \"Stacks[0].Outputs[?contains(OutputKey, 'Frontend')].OutputValue\" --output text) --delete",
+    "deploy:invalidate": "aws cloudfront create-invalidation --distribution-id $(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query \"Stacks[0].Outputs[?OutputKey=='DistributionId'].OutputValue\" --output text) --paths \"/*\"",
+    "deploy:simple": "npm run build:prod && aws s3 sync dist/my-angular-app/browser s3://artplatformstoragenew-frontendbucket-$(aws cloudformation describe-stacks --stack-name ArtPlatformStorageNew --query \"Stacks[0].Outputs[0].OutputValue\" --output text | cut -d'-' -f3) --delete"
   },
   "private": true,
   "dependencies": {

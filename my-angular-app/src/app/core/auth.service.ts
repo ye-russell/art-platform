@@ -1,5 +1,5 @@
 // src/app/core/auth.service.ts
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import {
   signIn,
   signUp,
@@ -11,6 +11,7 @@ import {
 } from 'aws-amplify/auth';
 import { BehaviorSubject, Observable, from } from 'rxjs';
 import { map, tap } from 'rxjs/operators';
+import { AwsService } from './aws.service';
 
 @Injectable({
   providedIn: 'root',
@@ -18,9 +19,27 @@ import { map, tap } from 'rxjs/operators';
 export class AuthService {
   private userSubject = new BehaviorSubject<any>(null);
   private isAuthenticatedSubject = new BehaviorSubject<boolean>(false);
+  private awsService = inject(AwsService);
 
   constructor() {
-    this.checkAuthStatus();
+    // Don't check auth status immediately - wait for initialization
+    this.initializeAuth();
+  }
+
+  private async initializeAuth() {
+    try {
+      // Wait for AWS to be initialized
+      if (!this.awsService.isInitialized()) {
+        await this.awsService.initialize();
+      }
+      
+      // Now check auth status
+      await this.checkAuthStatus();
+    } catch (error) {
+      console.error('Failed to initialize auth:', error);
+      this.userSubject.next(null);
+      this.isAuthenticatedSubject.next(false);
+    }
   }
 
   // Get current auth status

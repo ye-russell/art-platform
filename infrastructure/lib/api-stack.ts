@@ -7,7 +7,6 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as cognito from 'aws-cdk-lib/aws-cognito';
 import * as path from 'path';
 import * as logs from 'aws-cdk-lib/aws-logs';
-import * as wafv2 from 'aws-cdk-lib/aws-wafv2';
 
 interface ApiStackProps extends cdk.StackProps {
   artistsTable: dynamodb.Table;
@@ -62,7 +61,7 @@ export class ApiStack extends cdk.Stack {
       ]
     });
 
-    // Create API Gateway with WAF and throttling
+    // Create API Gateway with throttling
     const api = new apigateway.RestApi(this, 'ArtPlatformApi', {
       restApiName: 'Art Platform API',
       description: 'API for Art Platform',
@@ -85,76 +84,6 @@ export class ApiStack extends cdk.Stack {
         ),
         accessLogFormat: apigateway.AccessLogFormat.jsonWithStandardFields()
       },
-    });
-
-    // Create WAF Web ACL for API Gateway
-    const webAcl = new wafv2.CfnWebACL(this, 'ApiWafAcl', {
-      defaultAction: { allow: {} },
-      scope: 'REGIONAL',
-      visibilityConfig: {
-        cloudWatchMetricsEnabled: true,
-        metricName: 'ApiWafAcl',
-        sampledRequestsEnabled: true,
-      },
-      rules: [
-        // Rate limiting rule
-        {
-          name: 'RateLimitRule',
-          priority: 1,
-          action: { block: {} },
-          visibilityConfig: {
-            cloudWatchMetricsEnabled: true,
-            metricName: 'RateLimitRule',
-            sampledRequestsEnabled: true,
-          },
-          statement: {
-            rateBasedStatement: {
-              limit: 100, // Maximum requests per 5 minutes
-              aggregateKeyType: 'IP',
-            },
-          },
-        },
-        // AWS Managed Rules - Common Rule Set
-        {
-          name: 'AWSManagedRulesCommonRuleSet',
-          priority: 2,
-          overrideAction: { none: {} },
-          visibilityConfig: {
-            cloudWatchMetricsEnabled: true,
-            metricName: 'AWSManagedRulesCommonRuleSet',
-            sampledRequestsEnabled: true,
-          },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesCommonRuleSet',
-            },
-          },
-        },
-        // AWS Managed Rules - SQL Injection Rule Set
-        {
-          name: 'AWSManagedRulesSQLiRuleSet',
-          priority: 3,
-          overrideAction: { none: {} },
-          visibilityConfig: {
-            cloudWatchMetricsEnabled: true,
-            metricName: 'AWSManagedRulesSQLiRuleSet',
-            sampledRequestsEnabled: true,
-          },
-          statement: {
-            managedRuleGroupStatement: {
-              vendorName: 'AWS',
-              name: 'AWSManagedRulesSQLiRuleSet',
-            },
-          },
-        },
-      ],
-    });
-
-    // Associate WAF Web ACL with API Gateway stage
-    new wafv2.CfnWebACLAssociation(this, 'ApiWafAssociation', {
-      resourceArn: `arn:aws:apigateway:${this.region}::/restapis/${api.restApiId}/stages/${api.deploymentStage.stageName}`,
-      webAclArn: webAcl.attrArn,
     });
 
     // Create Cognito authorizer

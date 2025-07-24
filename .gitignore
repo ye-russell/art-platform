@@ -32,8 +32,6 @@ amplify/
 .env
 .env.local
 .env.*.local
-environment.local-aws.ts
-environment.prod.ts
 config.local.json
 local-config.json
 

@@ -2,6 +2,10 @@
 
 A full-stack web application for artists to showcase and sell their artwork, built with Angular and AWS services.
 
+## 🌐 Live Application
+
+**Production URL:** https://d2f0064tn69923.cloudfront.net
+
 ## Architecture
 
 This application uses the following AWS services:

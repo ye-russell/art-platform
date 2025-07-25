@@ -63,12 +63,29 @@ export class ApiStack extends cdk.Stack {
 
     // Create API Gateway with throttling
     const api = new apigateway.RestApi(this, 'ArtPlatformApi', {
-      restApiName: 'Art Platform API',
+      restApiName: 'Art Platform API v2',
       description: 'API for Art Platform',
       defaultCorsPreflightOptions: {
-        allowOrigins: apigateway.Cors.ALL_ORIGINS,
-        allowMethods: apigateway.Cors.ALL_METHODS,
-        allowHeaders: ['Content-Type', 'Authorization', 'X-Amz-Date', 'X-Api-Key'],
+        allowOrigins: [
+          'https://localhost:4200',
+          'http://localhost:4200',
+          'https://d2f0064tn69923.cloudfront.net',
+        ],
+        allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowHeaders: [
+          'Content-Type', 
+          'Authorization', 
+          'X-Amz-Date', 
+          'X-Api-Key',
+          'X-Amz-Security-Token',
+          'X-Amz-User-Agent',
+          'X-Amz-Content-Sha256',
+          'X-Requested-With',
+          'Accept',
+          'Accept-Language',
+          'X-Forwarded-For',
+          'X-Forwarded-Proto'
+        ],
         allowCredentials: true,
       },
       deployOptions: {

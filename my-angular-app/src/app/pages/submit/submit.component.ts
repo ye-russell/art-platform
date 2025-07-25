@@ -36,7 +36,7 @@ export class SubmitComponent implements OnInit {
       image: [null, Validators.required],
       externalLink: [
         '',
-        [Validators.required, Validators.pattern('https?://.+')],
+        [Validators.required, Validators.pattern('^https?://.+\\..+')]
       ],
       artistInfo: ['', [Validators.required, Validators.maxLength(200)]],
     });
@@ -60,13 +60,28 @@ export class SubmitComponent implements OnInit {
     }
   }
 
-  onFileChange(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (input.files && input.files.length > 0) {
-      const file = input.files[0];
-      console.log('Selected file:', file); // Log the file for debugging
-      // Store the file in a separate variable or process it as needed
-      this.submitForm.patchValue({ image: file }); // Store the file object in the form
+  onFileChange(event: any): void {
+    const file = event.target.files[0];
+    console.log('Selected file:', file);
+    
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        alert('Please select a valid image file (JPEG, PNG, GIF, or WebP)');
+        event.target.value = '';
+        return;
+      }
+      
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+      if (file.size > maxSize) {
+        alert('File size must be less than 5MB');
+        event.target.value = '';
+        return;
+      }
+      
+      this.submitForm.patchValue({ image: file });
     }
   }
 }

@@ -4,6 +4,7 @@ const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { CognitoIdentityProviderClient, AdminGetUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const { v4: uuidv4 } = require('uuid');
+const validator = require('validator');
 
 // Initialize AWS clients
 const dynamoClient = new DynamoDBClient();
@@ -16,6 +17,75 @@ const ARTISTS_TABLE = process.env.ARTISTS_TABLE;
 const ARTWORKS_TABLE = process.env.ARTWORKS_TABLE;
 const ASSETS_BUCKET = process.env.ASSETS_BUCKET;
 const USER_POOL_ID = process.env.USER_POOL_ID;
+
+// Input validation functions
+function validateAndSanitizeInput(data, schema) {
+  const sanitized = {};
+  const errors = [];
+
+  for (const [field, rules] of Object.entries(schema)) {
+    let value = data[field];
+    
+    // Check if required field is missing
+    if (rules.required && (!value || value.toString().trim() === '')) {
+      errors.push(`${field} is required`);
+      continue;
+    }
+    
+    // Skip validation for optional empty fields
+    if (!value && !rules.required) {
+      continue;
+    }
+    
+    // Convert to string and trim
+    value = value.toString().trim();
+    
+    // Length validation
+    if (rules.maxLength && value.length > rules.maxLength) {
+      errors.push(`${field} must be less than ${rules.maxLength} characters`);
+      continue;
+    }
+    
+    if (rules.minLength && value.length < rules.minLength) {
+      errors.push(`${field} must be at least ${rules.minLength} characters`);
+      continue;
+    }
+    
+    // Type-specific validation
+    if (rules.type === 'email' && !validator.isEmail(value)) {
+      errors.push(`${field} must be a valid email`);
+      continue;
+    }
+    
+    if (rules.type === 'url' && !validator.isURL(value, { protocols: ['http', 'https'] })) {
+      errors.push(`${field} must be a valid URL`);
+      continue;
+    }
+    
+    if (rules.type === 'number') {
+      const numValue = parseFloat(value);
+      if (isNaN(numValue)) {
+        errors.push(`${field} must be a valid number`);
+        continue;
+      }
+      value = numValue;
+    }
+    
+    // Sanitize HTML (basic)
+    if (rules.stripHtml) {
+      value = value.replace(/<[^>]*>/g, '');
+    }
+    
+    // Escape special characters
+    if (rules.escape) {
+      value = validator.escape(value);
+    }
+    
+    sanitized[field] = value;
+  }
+  
+  return { sanitized, errors };
+}
 
 // Lambda handler
 exports.handler = async (event) => {
@@ -143,12 +213,29 @@ async function handleArtistsRoute(httpMethod, pathParameters, queryStringParamet
         return buildResponse(401, { message: 'Authentication required' });
       }
       
+      // Validate and sanitize input
+      const artistSchema = {
+        name: { required: true, maxLength: 100, stripHtml: true },
+        bio: { required: false, maxLength: 1000, stripHtml: true },
+        website: { required: false, type: 'url' },
+        contactEmail: { required: false, type: 'email' },
+        contactPhone: { required: false, maxLength: 20 }
+      };
+
+      const { sanitized, errors } = validateAndSanitizeInput(body, artistSchema);
+      
+      if (errors.length > 0) {
+        return buildResponse(400, { message: 'Validation failed', errors });
+      }
+      
       const newArtist = {
         artistId: uuidv4(),
         userId: userId, // Link to Cognito user
-        name: body.name,
-        bio: body.bio,
-        email: body.email,
+        name: sanitized.name,
+        bio: sanitized.bio,
+        website: sanitized.website,
+        contactEmail: sanitized.contactEmail,
+        contactPhone: sanitized.contactPhone,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };
@@ -282,8 +369,24 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       if (!userId) {
         return buildResponse(401, { message: 'Authentication required' });
       }
+
+      // Validate and sanitize input
+      const artworkSchema = {
+        title: { required: true, maxLength: 100, stripHtml: true },
+        description: { required: true, maxLength: 500, stripHtml: true },
+        imageUrl: { required: false, type: 'url' },
+        externalLink: { required: false, type: 'url' },
+        artistInfo: { required: false, maxLength: 200, stripHtml: true },
+        price: { required: false, type: 'number' }
+      };
+
+      const { sanitized, errors } = validateAndSanitizeInput(body, artworkSchema);
       
-      // Verify the user is the artist
+      if (errors.length > 0) {
+        return buildResponse(400, { message: 'Validation failed', errors });
+      }
+      
+      // Verify the user is the artist or create artwork submission
       if (body.artistId) {
         const getParams = {
           TableName: ARTISTS_TABLE,
@@ -295,17 +398,17 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
         if (!artistRecord.Item || artistRecord.Item.userId !== userId) {
           return buildResponse(403, { message: 'Not authorized to create artwork for this artist' });
         }
-      } else {
-        return buildResponse(400, { message: 'Artist ID is required' });
       }
       
       const newArtwork = {
         artworkId: uuidv4(),
-        artistId: body.artistId,
-        title: body.title,
-        description: body.description,
-        imageUrl: body.imageUrl,
-        price: body.price,
+        artistId: body.artistId || userId, // Use userId if no specific artist
+        title: sanitized.title,
+        description: sanitized.description,
+        imageUrl: sanitized.imageUrl,
+        externalLink: sanitized.externalLink,
+        artistInfo: sanitized.artistInfo,
+        price: sanitized.price,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

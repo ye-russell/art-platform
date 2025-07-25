@@ -133,10 +133,7 @@ export class ApiStack extends cdk.Stack {
     // Artworks resource
     const artworksResource = apiResource.addResource('artworks');
     artworksResource.addMethod('GET', new apigateway.LambdaIntegration(apiLambda));
-    artworksResource.addMethod('POST', new apigateway.LambdaIntegration(apiLambda), {
-      authorizer,
-      authorizationType: apigateway.AuthorizationType.COGNITO,
-    });
+    artworksResource.addMethod('POST', new apigateway.LambdaIntegration(apiLambda));
     
     const singleArtworkResource = artworksResource.addResource('{artworkId}');
     singleArtworkResource.addMethod('GET', new apigateway.LambdaIntegration(apiLambda));

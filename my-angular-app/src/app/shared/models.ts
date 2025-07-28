@@ -5,8 +5,10 @@ export interface Artwork {
   price?: Price;
   imageUrl: string;
   link: string;
+  externalLink?: string;
   source?: string;
   artist: Artist;
+  artistInfo: string;
   createdAt?: Date;
 }
 

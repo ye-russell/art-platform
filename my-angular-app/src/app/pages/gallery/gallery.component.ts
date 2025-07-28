@@ -24,6 +24,7 @@ export class GalleryComponent implements OnInit {
   private loadArtworks(): void {
     this.apiService.getArtworks().subscribe({
       next: (data: Artwork[]) => {
+        console.log('Loaded artworks:', data); // Log the loaded artworks for debugging
         this.artworks = data;
       },
       error: (error: Error) => {

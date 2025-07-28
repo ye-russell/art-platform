@@ -81,7 +81,20 @@ export class SubmitComponent implements OnInit {
         return;
       }
       
-      this.submitForm.patchValue({ image: file });
+      // Convert file to base64
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        // Store both the base64 data and file info
+        const imageData = {
+          data: base64String,
+          type: file.type,
+          name: file.name,
+          size: file.size
+        };
+        this.submitForm.patchValue({ image: imageData });
+      };
+      reader.readAsDataURL(file);
     }
   }
 }

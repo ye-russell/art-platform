@@ -3,7 +3,7 @@
     <mat-card class="art-card">
       <mat-card-header>
         <mat-card-title>{{ art.title }}</mat-card-title>
-        <mat-card-subtitle>{{ art.artist.name }}</mat-card-subtitle>
+        <mat-card-subtitle>{{ art.artistInfo }}</mat-card-subtitle>
       </mat-card-header>
       <img mat-card-image [src]="art.imageUrl" alt="{{ art.title }}" height="300px" width="400px" />
 
@@ -11,7 +11,7 @@
         <p>{{ art.description }}</p>
       </mat-card-content>
       <mat-card-actions>
-        <a mat-button href="{{ art.link }}" target="_blank">View More</a>
+        <a mat-button href="{{ art.externalLink || art.link }}" target="_blank">View More</a>
       </mat-card-actions>
     </mat-card>
   } @empty {

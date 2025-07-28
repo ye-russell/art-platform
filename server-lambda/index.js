@@ -366,6 +366,40 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       
     case 'POST':
       // Create a new artwork - authentication optional for testing
+      console.log('POST /artworks - body:', JSON.stringify(body, null, 2));
+
+      // Handle image upload if base64 data is provided
+      let imageUrl = null;
+      if (body.image && body.image.data) {
+        try {
+          console.log('Processing image upload...');
+          // Extract base64 data (remove data:image/type;base64, prefix)
+          const base64Data = body.image.data.split(',')[1];
+          const buffer = Buffer.from(base64Data, 'base64');
+          
+          // Generate unique filename
+          const fileExtension = body.image.type.split('/')[1] || 'jpg';
+          const fileName = `${uuidv4()}.${fileExtension}`;
+          const fileKey = `assets/uploads/anonymous/${fileName}`;
+          
+          console.log('Uploading to S3 with key:', fileKey);
+          
+          // Upload to S3
+          const uploadCommand = new PutObjectCommand({
+            Bucket: ASSETS_BUCKET,
+            Key: fileKey,
+            Body: buffer,
+            ContentType: body.image.type
+          });
+          
+          await s3Client.send(uploadCommand);
+          imageUrl = `https://d2f0064tn69923.cloudfront.net/${fileKey}`;
+          console.log('Image uploaded successfully to:', imageUrl);
+        } catch (error) {
+          console.error('Error uploading image:', error);
+          return buildResponse(400, { message: 'Failed to upload image', error: error.message });
+        }
+      }
 
       // Validate and sanitize input
       const artworkSchema = {
@@ -377,11 +411,15 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
         price: { required: false, type: 'number' }
       };
 
+      console.log('Validating input...');
       const { sanitized, errors } = validateAndSanitizeInput(body, artworkSchema);
       
       if (errors.length > 0) {
+        console.log('Validation errors:', errors);
         return buildResponse(400, { message: 'Validation failed', errors });
       }
+      
+      console.log('Validation passed, sanitized data:', sanitized);
       
       // Verify the user is the artist or create artwork submission
       if (body.artistId) {
@@ -399,10 +437,10 @@ async function handleArtworksRoute(httpMethod, pathParameters, queryStringParame
       
       const newArtwork = {
         artworkId: uuidv4(),
-        artistId: body.artistId || userId, // Use userId if no specific artist
+        artistId: body.artistId || 'anonymous', // Use anonymous if no specific artist
         title: sanitized.title,
         description: sanitized.description,
-        imageUrl: sanitized.imageUrl,
+        imageUrl: imageUrl || sanitized.imageUrl, // Use uploaded image URL or provided URL
         externalLink: sanitized.externalLink,
         artistInfo: sanitized.artistInfo,
         price: sanitized.price,

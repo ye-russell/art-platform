@@ -7,6 +7,7 @@
   
   .art-card {
     width: 100%; /* Ensure the card takes full width of its grid cell */
+    max-width: 500px;
   }
 
   .art-card img {

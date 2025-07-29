@@ -65,8 +65,17 @@
           }
         </mat-form-field>
       
-        <button mat-raised-button color="primary" type="submit" [disabled]="submitForm.invalid">
-          Submit
+        <button 
+          mat-raised-button 
+          color="primary" 
+          type="submit" 
+          [disabled]="submitForm.invalid || isLoading"
+          [class.loading-button]="isLoading">
+          @if (isLoading) {
+            Submitting...
+          } @else {
+            Submit
+          }
         </button>
       </form>
 </div>

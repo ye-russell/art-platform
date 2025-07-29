@@ -1,9 +1,11 @@
 import { Component, OnInit } from '@angular/core';
 import { ReactiveFormsModule } from '@angular/forms';
 import { FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { Router } from '@angular/router';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { Artwork } from '../../shared/models';
 import { ApiService } from '../../core/api.service';
 
@@ -14,6 +16,7 @@ import { ApiService } from '../../core/api.service';
     MatFormFieldModule,
     MatInputModule,
     MatButtonModule,
+    MatSnackBarModule,
   ],
   templateUrl: './submit.component.html',
   styleUrl: './submit.component.css',
@@ -23,7 +26,12 @@ export class SubmitComponent implements OnInit {
   submitForm!: FormGroup;
   isLoading = false;
 
-  constructor(private fb: FormBuilder, private apiService: ApiService) {}
+  constructor(
+    private fb: FormBuilder, 
+    private apiService: ApiService,
+    private router: Router,
+    private snackBar: MatSnackBar
+  ) {}
 
   ngOnInit(): void {
     this.initializeForm();
@@ -48,13 +56,33 @@ export class SubmitComponent implements OnInit {
       const artwork: Artwork = this.submitForm.value;
       console.log('Submitting artwork:', artwork); // Log the artwork for debugging
       this.apiService.addArtwork(artwork).subscribe({
-        next: () => {
+        next: (response) => {
+          console.log('Artwork submitted successfully:', response);
           this.isLoading = false;
+          
+          // Show success message
+          this.snackBar.open('Artwork submitted successfully! 🎨', 'Close', {
+            duration: 3000,
+            panelClass: ['success-snackbar']
+          });
+          
+          // Reset the form
           this.submitForm.reset();
+          
+          // Navigate to gallery after a short delay
+          setTimeout(() => {
+            this.router.navigate(['/gallery']);
+          }, 1500);
         },
         error: (error: Error) => {
-          this.isLoading = false;
           console.error('Error submitting artwork:', error);
+          this.isLoading = false;
+          
+          // Show error message
+          this.snackBar.open('Failed to submit artwork. Please try again.', 'Close', {
+            duration: 5000,
+            panelClass: ['error-snackbar']
+          });
         },
       });
     }

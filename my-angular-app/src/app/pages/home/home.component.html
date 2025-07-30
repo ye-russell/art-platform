@@ -1,2 +1,70 @@
-<h1>Welcome to the Art Platform</h1>
-<p>Discover amazing artwork and connect with artists.</p>
+<div class="home-container">
+  <!-- Hero Section with Animation -->
+  <section class="hero-section">
+    <div class="animation-container">
+      <div class="floating-shapes">
+        @for (shape of shapes; track $index) {
+          <div 
+            class="shape"
+            [ngClass]="shape.type"
+            [ngStyle]="{
+              'left': shape.x + '%',
+              'top': shape.y + '%',
+              'animation-delay': shape.delay + 's',
+              'background-color': shape.color,
+              'animation-duration': shape.duration + 's'
+            }">
+          </div>
+        }
+      </div>
+      
+      <div class="hero-content">
+        <h1 class="hero-title">🎨 Art Network</h1>
+        <p class="hero-subtitle">Where Creativity Meets Community</p>
+        <button mat-raised-button color="primary" routerLink="/gallery" class="cta-button">
+          Explore Gallery
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mission Section -->
+  <section class="mission-section">
+    <div class="mission-content">
+      <h2>Our Mission</h2>
+      <div class="mission-grid">
+        <div class="mission-card">
+          <div class="mission-icon">🌟</div>
+          <h3>Discover</h3>
+          <p>Explore a diverse collection of artwork from talented artists around the world. Find inspiration in every piece.</p>
+        </div>
+        
+        <div class="mission-card">
+          <div class="mission-icon">🤝</div>
+          <h3>Connect</h3>
+          <p>Build meaningful connections between artists and art lovers. Create a vibrant community of creative minds.</p>
+        </div>
+        
+        <div class="mission-card">
+          <div class="mission-icon">🚀</div>
+          <h3>Share</h3>
+          <p>Showcase your artistic creations to the world. Share your vision and inspire others with your unique perspective.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Section -->
+  <section class="cta-section">
+    <h2>Ready to Share Your Art?</h2>
+    <p>Join our community of artists and art enthusiasts. Start your creative journey today.</p>
+    <div class="cta-buttons">
+      <button mat-raised-button color="primary" routerLink="/submit">
+        Submit Artwork
+      </button>
+      <button mat-stroked-button color="primary" routerLink="/gallery">
+        Browse Gallery
+      </button>
+    </div>
+  </section>
+</div>

@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewInit } from '@angular/core';
 import {
   FormBuilder,
   FormGroup,
@@ -10,6 +10,8 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
+import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { AuthService } from '../../core/auth.service';
 
 @Component({
@@ -20,11 +22,15 @@ import { AuthService } from '../../core/auth.service';
     MatInputModule,
     MatButtonModule,
     MatCardModule,
+    MatIconModule,
+    MatProgressSpinnerModule,
   ],
   templateUrl: './login.component.html',
   styleUrl: './login.component.css',
 })
-export class LoginComponent {
+export class LoginComponent implements AfterViewInit {
+  @ViewChild('codeInput') codeInput!: ElementRef<HTMLInputElement>;
+  
   loginForm: FormGroup;
   registerForm: FormGroup;
   confirmationForm: FormGroup;
@@ -46,18 +52,26 @@ export class LoginComponent {
     });
     this.registerForm = this.fb.group({
       email: ['', [Validators.required, Validators.email]],
-      password: ['', [Validators.required, Validators.minLength(6)]],
+      password: ['', [Validators.required, Validators.minLength(8)]],
       name: ['', [Validators.required, Validators.maxLength(50)]],
     });
-    // Confirmation form
+    // Confirmation form with pattern validation for 6-digit code
     this.confirmationForm = this.fb.group({
-      code: ['', Validators.required],
+      code: ['', [Validators.required, Validators.pattern(/^\d{6}$/)]],
     });
+  }
+
+  ngAfterViewInit(): void {
+    // Focus management for accessibility
+    if (this.showConfirmation && this.codeInput) {
+      setTimeout(() => this.codeInput.nativeElement.focus(), 100);
+    }
   }
 
   toggleMode(): void {
     this.isRegisterMode = !this.isRegisterMode;
     this.errorMessage = '';
+    this.showConfirmation = false;
   }
 
   onSubmit(): void {
@@ -73,6 +87,7 @@ export class LoginComponent {
   private handleRegistration(): void {
     if (this.registerForm.valid) {
       this.isLoading = true;
+      this.errorMessage = '';
       const { email, password, name } = this.registerForm.value;
 
       this.authService.signUp(email, password, name).subscribe({
@@ -81,22 +96,30 @@ export class LoginComponent {
           if (!result.isSignUpComplete) {
             this.userEmail = email;
             this.showConfirmation = true;
-            this.errorMessage =
-              'Please check your email for the confirmation code';
+            this.errorMessage = '';
+            // Focus the confirmation input after view update
+            setTimeout(() => {
+              if (this.codeInput) {
+                this.codeInput.nativeElement.focus();
+              }
+            }, 100);
           }
         },
         error: (error) => {
           console.error('Registration error:', error);
           this.isLoading = false;
-          this.errorMessage = error?.message || 'Registration failed';
+          this.errorMessage = error?.message || 'Registration failed. Please try again.';
         },
       });
+    } else {
+      this.markFormGroupTouched(this.registerForm);
     }
   }
 
   private handleConfirmation(): void {
     if (this.confirmationForm.valid) {
       this.isLoading = true;
+      this.errorMessage = '';
       const { code } = this.confirmationForm.value;
 
       this.authService.confirmSignUp(this.userEmail, code).subscribe({
@@ -104,13 +127,16 @@ export class LoginComponent {
           this.isLoading = false;
           this.showConfirmation = false;
           this.isRegisterMode = false; // Switch to login view
-          this.errorMessage = 'Email confirmed successfully. Please login.';
+          this.errorMessage = '';
+          // Success message can be handled by a snackbar or similar
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.message || 'Confirmation failed';
+          this.errorMessage = error.message || 'Verification failed. Please try again.';
         },
       });
+    } else {
+      this.markFormGroupTouched(this.confirmationForm);
     }
   }
 
@@ -127,9 +153,11 @@ export class LoginComponent {
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.message || 'Login failed';
+          this.errorMessage = error.message || 'Sign in failed. Please check your credentials.';
         },
       });
+    } else {
+      this.markFormGroupTouched(this.loginForm);
     }
   }
 
@@ -139,13 +167,22 @@ export class LoginComponent {
       this.authService.resendConfirmationCode(this.userEmail).subscribe({
         next: () => {
           this.isLoading = false;
-          this.errorMessage = 'New confirmation code sent to your email';
+          this.errorMessage = '';
+          // Could show success message via snackbar
         },
         error: (error) => {
           this.isLoading = false;
-          this.errorMessage = error.message || 'Failed to resend code';
+          this.errorMessage = error.message || 'Failed to resend verification code';
         },
       });
     }
+  }
+
+  // Accessibility helper methods
+  private markFormGroupTouched(formGroup: FormGroup): void {
+    Object.keys(formGroup.controls).forEach(key => {
+      const control = formGroup.get(key);
+      control?.markAsTouched();
+    });
   }
 }

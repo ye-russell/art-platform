@@ -1,140 +1,173 @@
-<div class="login-container">
+<div class="login-container" role="main">
   <mat-card>
     <mat-card-header>
-      <mat-card-title
-        >{{ isRegisterMode ? "Register" : "Login" }} to Art
-        Platform</mat-card-title
-      >
+      <mat-card-title id="auth-title" role="heading" aria-level="1">
+        {{ isRegisterMode ? "Create Account" : "Sign In" }} to Art Platform
+      </mat-card-title>
+      <mat-card-subtitle id="auth-subtitle">
+        {{ isRegisterMode
+        ? "Join our creative community and share your artwork"
+        : "Welcome back! Please sign in to your account"
+        }}
+      </mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
       @if (showConfirmation) {
-        <form [formGroup]="confirmationForm" (ngSubmit)="onSubmit()">
-          <mat-form-field>
-            <mat-label>Confirmation Code</mat-label>
-            <input
-              matInput
-              formControlName="code"
-              placeholder="Enter the code sent to your email"
-              required
-            />
+      <section aria-labelledby="confirmation-heading" role="region">
+        <h2 id="confirmation-heading" class="sr-only">Email Verification</h2>
+        <p id="confirmation-description" class="confirmation-text">
+          Please enter the verification code sent to your email address.
+        </p>
+
+        <form [formGroup]="confirmationForm" (ngSubmit)="onSubmit()" aria-describedby="confirmation-description"
+          novalidate autocomplete="off">
+          <mat-form-field appearance="outline">
+            <mat-label>Verification Code</mat-label>
+            <input matInput formControlName="code" placeholder="Enter 6-digit code" required
+              aria-describedby="code-error confirmation-description"
+              [attr.aria-invalid]="confirmationForm.get('code')?.invalid && confirmationForm.get('code')?.touched"
+              autocomplete="one-time-code" inputmode="numeric" maxlength="6" pattern="[0-9]{6}" #codeInput />
+            @if (confirmationForm.get('code')?.hasError('required') && confirmationForm.get('code')?.touched) {
+            <mat-error id="code-error" role="alert">
+              Verification code is required
+            </mat-error>
+            }
+            @if (confirmationForm.get('code')?.hasError('pattern') && confirmationForm.get('code')?.touched) {
+            <mat-error id="code-error" role="alert">
+              Please enter a valid 6-digit code
+            </mat-error>
+            }
           </mat-form-field>
 
-          <div class="form-actions">
-            <button
-              mat-raised-button
-              color="primary"
-              type="submit"
-              [disabled]="!confirmationForm.valid || isLoading"
-            >
-              Confirm Email
+          <div class="form-actions" role="group" aria-label="Verification actions">
+            <button mat-raised-button color="primary" type="submit" [disabled]="!confirmationForm.valid || isLoading"
+              [attr.aria-describedby]="isLoading ? 'loading-status' : null" class="primary-action">
+              @if (isLoading) {
+              Loading...
+              }
+              Verify Email
             </button>
 
-            <button
-              mat-button
-              type="button"
-              (click)="resendCode()"
-              [disabled]="isLoading"
-            >
+            <button mat-button type="button" (click)="resendCode()" [disabled]="isLoading"
+              aria-describedby="resend-help" class="secondary-action">
               Resend Code
             </button>
+            <div id="resend-help" class="sr-only">
+              Request a new verification code to be sent to your email
+            </div>
           </div>
         </form>
+      </section>
       } @else {
-        <form
-          [formGroup]="isRegisterMode ? registerForm : loginForm"
-          (ngSubmit)="onSubmit()"
-        >
+      <section aria-labelledby="auth-title" role="region">
+        <form [formGroup]="isRegisterMode ? registerForm : loginForm" (ngSubmit)="onSubmit()" novalidate
+          [attr.aria-describedby]="errorMessage ? 'form-error' : null">
           <mat-form-field appearance="outline">
-            <mat-label>Email</mat-label>
-            <input matInput type="email" formControlName="email" required />
-            @if (
-              (isRegisterMode ? registerForm : loginForm)
-                .get("email")
-                ?.hasError("required")
-            ) {
-              <mat-error> Email is required </mat-error>
+            <mat-label>Email Address</mat-label>
+            <input matInput type="email" formControlName="email" required autocomplete="email"
+              [attr.aria-invalid]="(isRegisterMode ? registerForm : loginForm).get('email')?.invalid && (isRegisterMode ? registerForm : loginForm).get('email')?.touched"
+              aria-describedby="email-error" placeholder="Enter your email address" />
+            @if ((isRegisterMode ? registerForm : loginForm).get("email")?.hasError("required") && (isRegisterMode ?
+            registerForm : loginForm).get("email")?.touched) {
+            <mat-error id="email-error" role="alert">
+              Email address is required
+            </mat-error>
             }
-
-            @if (
-              (isRegisterMode ? registerForm : loginForm)
-                .get("email")
-                ?.hasError("email")
-            ) {
-              <mat-error> Please enter a valid email </mat-error>
+            @if ((isRegisterMode ? registerForm : loginForm).get("email")?.hasError("email") && (isRegisterMode ?
+            registerForm : loginForm).get("email")?.touched) {
+            <mat-error id="email-error" role="alert">
+              Please enter a valid email address
+            </mat-error>
             }
           </mat-form-field>
 
           <mat-form-field appearance="outline">
             <mat-label>Password</mat-label>
-            <input
-              matInput
-              type="password"
-              formControlName="password"
-              required
-            />
-            @if (
-              (isRegisterMode ? registerForm : loginForm)
-                .get("password")
-                ?.hasError("required")
-            ) {
-              <mat-error> Password is required </mat-error>
+            <input matInput type="password" formControlName="password" required
+              [autocomplete]="isRegisterMode ? 'new-password' : 'current-password'"
+              [attr.aria-invalid]="(isRegisterMode ? registerForm : loginForm).get('password')?.invalid && (isRegisterMode ? registerForm : loginForm).get('password')?.touched"
+              [attr.aria-describedby]="isRegisterMode ? 'password-requirements password-error' : 'password-error'"
+              [placeholder]="isRegisterMode ? 'Create a strong password' : 'Enter your password'" />
+            @if (isRegisterMode) {
+            <mat-hint id="password-requirements">Must be at least 8 characters with uppercase, lowercase, number, and
+              special character
+            </mat-hint>
             }
-            @if (
-              registerForm.get("password")?.hasError("minlength") &&
-              isRegisterMode
-            ) {
-              <mat-error> Password must be at least 6 characters </mat-error>
+            @if ((isRegisterMode ? registerForm : loginForm).get("password")?.hasError("required") && (isRegisterMode ?
+            registerForm : loginForm).get("password")?.touched) {
+            <mat-error id="password-error" role="alert">
+              Password is required
+            </mat-error>
+            }
+            @if (registerForm.get("password")?.hasError("minlength") && isRegisterMode &&
+            registerForm.get("password")?.touched) {
+            <mat-error id="password-error" role="alert">
+              Password must be at least 8 characters long
+            </mat-error>
             }
           </mat-form-field>
 
           @if (isRegisterMode) {
-            <mat-form-field appearance="outline">
-              <mat-label>Name</mat-label>
-              <input matInput type="text" formControlName="name" required />
-              @if (registerForm.get("name")?.hasError("required")) {
-                <mat-error> Name is required </mat-error>
-              }
-
-              @if (registerForm.get("name")?.hasError("maxlength")) {
-                <mat-error> Name cannot exceed 50 characters </mat-error>
-              }
-            </mat-form-field>
+          <mat-form-field appearance="outline">
+            <mat-label>Full Name</mat-label>
+            <input matInput type="text" formControlName="name" required autocomplete="name"
+              [attr.aria-invalid]="registerForm.get('name')?.invalid && registerForm.get('name')?.touched"
+              aria-describedby="name-error" placeholder="Enter your full name" />
+            @if (registerForm.get("name")?.hasError("required") && registerForm.get("name")?.touched) {
+            <mat-error id="name-error" role="alert">
+              Full name is required
+            </mat-error>
+            }
+            @if (registerForm.get("name")?.hasError("maxlength") && registerForm.get("name")?.touched) {
+            <mat-error id="name-error" role="alert">
+              Name cannot exceed 50 characters
+            </mat-error>
+            }
+          </mat-form-field>
           }
 
-          <button
-            mat-raised-button
-            color="primary"
-            type="submit"
-            [disabled]="
-              (isRegisterMode ? registerForm : loginForm).invalid || isLoading
-            "
-          >
+          <button mat-raised-button color="primary" type="submit"
+            [disabled]="(isRegisterMode ? registerForm : loginForm).invalid || isLoading"
+            [attr.aria-describedby]="isLoading ? 'loading-status' : null" class="submit-button">
             {{
-              isLoading
-                ? isRegisterMode
-                  ? "Registering..."
-                  : "Logging in..."
-                : isRegisterMode
-                  ? "Register"
-                  : "Login"
+            isLoading
+            ? isRegisterMode
+            ? "Creating account..."
+            : "Signing in..."
+            : isRegisterMode
+            ? "Create Account"
+            : "Sign In"
             }}
           </button>
         </form>
+      </section>
       }
       @if (errorMessage) {
-        <div class="error-message" role="alert">{{ errorMessage }}</div>
+      <div id="form-error" class="error-message" role="alert" aria-live="polite" tabindex="-1">
+        {{ errorMessage }}
+      </div>
+      }
+
+      @if (isLoading) {
+      <div id="loading-status" class="sr-only" aria-live="polite">
+        {{ isRegisterMode ? 'Creating your account, please wait' : 'Signing you in, please wait' }}
+      </div>
       }
     </mat-card-content>
 
     <mat-card-actions>
-      <button mat-button color="accent" (click)="toggleMode()">
+      <button mat-button color="accent" (click)="toggleMode()" [attr.aria-expanded]="false"
+        aria-describedby="toggle-help">
         {{
-          isRegisterMode
-            ? "Already have an account? Login"
-            : "Don't have an account? Register"
+        isRegisterMode
+        ? "Already have an account? Sign in"
+        : "Need an account? Create one"
         }}
       </button>
+      <div id="toggle-help" class="sr-only">
+        Switch between login and registration forms
+      </div>
     </mat-card-actions>
   </mat-card>
 </div>

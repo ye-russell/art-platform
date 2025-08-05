@@ -7,3 +7,8 @@ body {
   max-width: 1200px;
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
+
+input, textarea {
+  outline: none !important;
+  resize: none !important;
+}

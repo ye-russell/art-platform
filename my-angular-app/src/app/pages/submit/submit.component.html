@@ -1,82 +1,186 @@
-<h1>Submit Your Artwork</h1>
-<p>Share your creations with the world.</p>
+<div class="submit-container" role="main">
+  <header class="page-header">
+    <h1 id="submit-title" role="heading" aria-level="1">Submit Your Artwork</h1>
+    <p class="page-description" id="submit-description">
+      Share your creative vision with our community. All fields marked with * are required.
+    </p>
+  </header>
 
-<div class="submit-form-container">
-    <form [formGroup]="submitForm" (ngSubmit)="onSubmit()">
+  <div class="submit-form-container">
+    <form [formGroup]="submitForm" (ngSubmit)="onSubmit()" novalidate aria-labelledby="submit-title"
+      aria-describedby="submit-description" [attr.aria-busy]="isLoading">
+      <fieldset class="artwork-details" role="group" aria-labelledby="artwork-legend">
+        <legend id="artwork-legend" class="sr-only">Artwork Information</legend>
+
         <!-- Title -->
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Title</mat-label>
-          <input matInput formControlName="title" />
-          @if (submitForm.get('title')?.hasError('required')) {
-            <mat-error>Title is required.</mat-error>
+          <mat-label>Artwork Title </mat-label>
+          <input matInput formControlName="title" placeholder="Enter a compelling title for your artwork" required
+            autocomplete="off" maxlength="100"
+            [attr.aria-invalid]="submitForm.get('title')?.invalid && submitForm.get('title')?.touched"
+            aria-describedby="title-error title-hint" />
+          <mat-hint id="title-hint">{{ submitForm.get('title')?.value?.length || 0 }}/100 characters</mat-hint>
+          @if (submitForm.get('title')?.hasError('required') && submitForm.get('title')?.touched) {
+          <mat-error id="title-error" role="alert">
+            Artwork title is required
+          </mat-error>
           }
-          @if (submitForm.get('title')?.hasError('maxlength')) {
-            <mat-error>Title must be less than 100 characters.</mat-error>
+          @if (submitForm.get('title')?.hasError('maxlength') && submitForm.get('title')?.touched) {
+          <mat-error id="title-error" role="alert">
+            Title must be 100 characters or less
+          </mat-error>
           }
         </mat-form-field>
-      
+
         <!-- Description -->
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Description</mat-label>
-          <textarea matInput formControlName="description"></textarea>
-          @if (submitForm.get('description')?.hasError('required')) {
-            <mat-error>Description is required.</mat-error>
+          <mat-label>Description </mat-label>
+          <textarea matInput formControlName="description"
+            placeholder="Describe your artwork, inspiration, or creative process" required rows="4" maxlength="500"
+            [attr.aria-invalid]="submitForm.get('description')?.invalid && submitForm.get('description')?.touched"
+            aria-describedby="description-error description-hint"></textarea>
+          <mat-hint id="description-hint">{{ submitForm.get('description')?.value?.length || 0 }}/500
+            characters</mat-hint>
+          @if (submitForm.get('description')?.hasError('required') && submitForm.get('description')?.touched) {
+          <mat-error id="description-error" role="alert">
+            Description is required
+          </mat-error>
           }
-          @if (submitForm.get('description')?.hasError('maxlength')) {
-            <mat-error>Description must be less than 500 characters.</mat-error>
+          @if (submitForm.get('description')?.hasError('maxlength') && submitForm.get('description')?.touched) {
+          <mat-error id="description-error" role="alert">
+            Description must be 500 characters or less
+          </mat-error>
           }
         </mat-form-field>
-      
-        <!-- Image -->
-        <div appearance="outline" class="full-width">
-          <label>Image</label>
-          <input
-            type="file"
-            (change)="onFileChange($event)"
-            required
-            [disabled]="false"
-          />
-          @if (submitForm.get('image')?.hasError('required')) {
-            <mat-error>Image is required.</mat-error>
+      </fieldset>
+
+      <fieldset class="image-upload" role="group" aria-labelledby="image-legend">
+        <legend id="image-legend" class="fieldset-legend">Image Upload *</legend>
+        <p class="upload-description" id="upload-help">
+          Upload your artwork image. Supported formats: JPG, PNG, GIF. Maximum size: 5MB.
+        </p>
+
+        <div class="file-upload-container">
+          <div class="file-input-wrapper">
+            <input type="file" id="image-upload" (change)="onFileChange($event)"
+              accept="image/jpeg,image/jpg,image/png,image/gif" required [disabled]="isLoading"
+              aria-describedby="upload-help image-error"
+              [attr.aria-invalid]="submitForm.get('image')?.invalid && submitForm.get('image')?.touched"
+              class="file-input" />
+            <label for="image-upload" class="file-upload-label">
+              <span class="upload-icon" aria-hidden="true">📁</span>
+              <span class="upload-text">
+                @if (selectedFileName) {
+                {{ selectedFileName }}
+                } @else {
+                Choose Image File or Drag & Drop
+                }
+              </span>
+            </label>
+          </div>
+
+          @if (imagePreview) {
+          <div class="image-preview" role="img" [attr.aria-label]="'Preview of ' + selectedFileName">
+            <img [src]="imagePreview" [alt]="'Preview of ' + selectedFileName" />
+            <button type="button" mat-icon-button (click)="removeImage()" aria-label="Remove selected image"
+              class="remove-image-btn">
+              ✕
+            </button>
+          </div>
           }
-      </div>
-      
+
+          @if (submitForm.get('image')?.hasError('required') && submitForm.get('image')?.touched) {
+          <mat-error id="image-error" role="alert" class="file-error">
+            Please select an image file
+          </mat-error>
+          }
+          @if (submitForm.get('image')?.hasError('invalidType')) {
+          <mat-error id="image-error" role="alert" class="file-error">
+            Please select a valid image file (JPG, PNG, or GIF)
+          </mat-error>
+          }
+          @if (submitForm.get('image')?.hasError('fileTooLarge')) {
+          <mat-error id="image-error" role="alert" class="file-error">
+            File size must be less than 5MB
+          </mat-error>
+          }
+        </div>
+      </fieldset>
+
+      <fieldset class="additional-info" role="group" aria-labelledby="additional-legend">
+        <legend id="additional-legend" class="fieldset-legend">Additional Information</legend>
+
         <!-- External Link -->
         <mat-form-field appearance="outline" class="full-width">
           <mat-label>External Link</mat-label>
-          <input matInput formControlName="externalLink" type="url" />
-          @if (submitForm.get('externalLink')?.hasError('required')) {
-            <mat-error>External link is required.</mat-error>
+          <input matInput formControlName="externalLink" type="url"
+            placeholder="https://your-portfolio.com or social media link" autocomplete="url"
+            [attr.aria-invalid]="submitForm.get('externalLink')?.invalid && submitForm.get('externalLink')?.touched"
+            aria-describedby="link-error link-hint" />
+          <mat-hint id="link-hint">Optional: Link to your portfolio, social media, or related content</mat-hint>
+          @if (submitForm.get('externalLink')?.hasError('required') && submitForm.get('externalLink')?.touched) {
+          <mat-error id="link-error" role="alert">
+            External link is required
+          </mat-error>
           }
-          @if (submitForm.get('externalLink')?.hasError('pattern')) {
-            <mat-error>Enter a valid URL.</mat-error>
+          @if (submitForm.get('externalLink')?.hasError('pattern') && submitForm.get('externalLink')?.touched) {
+          <mat-error id="link-error" role="alert">
+            Please enter a valid URL (e.g., https://example.com)
+          </mat-error>
           }
         </mat-form-field>
-      
+
         <!-- Artist Info -->
         <mat-form-field appearance="outline" class="full-width">
-          <mat-label>Artist Info</mat-label>
-          <textarea matInput formControlName="artistInfo"></textarea>
-          @if (submitForm.get('artistInfo')?.hasError('required')) {
-            <mat-error>Artist info is required.</mat-error>
+          <mat-label>Artist Information </mat-label>
+          <textarea matInput formControlName="artistInfo"
+            placeholder="Tell us about yourself as an artist, your style, experience, or background" required rows="3"
+            maxlength="200"
+            [attr.aria-invalid]="submitForm.get('artistInfo')?.invalid && submitForm.get('artistInfo')?.touched"
+            aria-describedby="artist-error artist-hint"></textarea>
+          <mat-hint id="artist-hint">{{ submitForm.get('artistInfo')?.value?.length || 0 }}/200 characters</mat-hint>
+          @if (submitForm.get('artistInfo')?.hasError('required') && submitForm.get('artistInfo')?.touched) {
+          <mat-error id="artist-error" role="alert">
+            Artist information is required
+          </mat-error>
           }
-          @if (submitForm.get('artistInfo')?.hasError('maxlength')) {
-            <mat-error>Artist info must be less than 200 characters.</mat-error>
+          @if (submitForm.get('artistInfo')?.hasError('maxlength') && submitForm.get('artistInfo')?.touched) {
+          <mat-error id="artist-error" role="alert">
+            Artist information must be 200 characters or less
+          </mat-error>
           }
         </mat-form-field>
-      
-        <button 
-          mat-raised-button 
-          color="primary" 
-          type="submit" 
-          [disabled]="submitForm.invalid || isLoading"
-          [class.loading-button]="isLoading">
+      </fieldset>
+
+      <div class="form-actions" role="group" aria-label="Form submission">
+        <button mat-raised-button color="primary" type="submit" [disabled]="submitForm.invalid || isLoading"
+          [attr.aria-describedby]="isLoading ? 'loading-status' : 'submit-help'" class="submit-button">
           @if (isLoading) {
+          <span class="loading-content">
+            <span class="loading-spinner" aria-hidden="true"></span>
             Submitting...
+          </span>
           } @else {
-            Submit
+          Submit Artwork
           }
         </button>
-      </form>
-</div>
 
+        <div id="submit-help" class="sr-only">
+          Submit your artwork to share it with the community
+        </div>
+
+        @if (isLoading) {
+        <div id="loading-status" class="sr-only" aria-live="polite">
+          Please wait while we process your artwork submission
+        </div>
+        }
+      </div>
+    </form>
+
+    @if (submitError) {
+    <div class="error-message" role="alert" aria-live="polite" tabindex="-1" id="form-error">
+      <strong>Submission Error:</strong> {{ submitError }}
+    </div>
+    }
+  </div>
+</div>
